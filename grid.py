@@ -56,9 +56,10 @@ class Grid:
         # --- Place Food ---
         food_count = int(self.width * self.height * init_food_density)
         self.food_pos = []
-        self.spawn_food(count=food_count, position=[
-            random.randrange(int(self.width / 4), int(self.width * 3 / 4)),
-            random.randrange(int(self.height / 4), int(self.height * 3 / 4))])
+        for i in range(3):
+            self.spawn_food(count=food_count/2, position=[
+                random.randrange(int(self.width / 4), int(self.width * 3 / 4)),
+                random.randrange(int(self.height / 4), int(self.height * 3 / 4))])
 
         # --- Place Dangers ---
         for _ in range(DangerCount):
