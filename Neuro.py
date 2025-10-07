@@ -24,10 +24,14 @@ init_population = 15
 agents = []
 
 # Agent Initial Attribute Distribution
-init_hunger = 15
-init_thirst = 45
-init_perception = 3
+init_hunger = 30
+init_thirst = 80
+init_perception = 5
 init_periferal = 3
+
+# Loop Tracking
+champion_epoch = -1
+champion_lifespan = 0
 
 # Neural Network Scrip
 learning_rate = 0.1
@@ -45,6 +49,7 @@ def main():
     # Training Loop
     for epoch in range(epochs):
         print(f"\n=== Epoch {epoch+1}/{epochs} ===")
+        last_step = -1
         
         # Reset Grid
         grid.init()
@@ -76,17 +81,29 @@ def main():
                 agent.memory.append((obs, action, reward, next_obs, agent.alive))
             
             # Spawn new food periodically
-            if (step % (sim_lifetime / 50) == 0):
+            if (step % (sim_lifetime / 10) == 0):
                 grid.spawn_food()
             
             # Render grid periodically
-            if (step % (sim_lifetime / 10) == 0):
+            if (step % (sim_lifetime / 50) == 0):
                 grid.render()
+
+            last_step = step
         
-        # Learn before end of loop
+        # Learn before end of epoch
         for agent in agents:
             if agent.memory:
                 agent.learn()
+                
+        if (last_step > self.champion_lifespan):
+            self.champion_lifespan = last_step
+            self.champion_epoch = epoch
+            print(f"New Champion Epoch: {champion_epoch+1} with Lifespan: {champion_lifespan}")
+        else:
+            print(f"Epoch Ended Below Champion: step {last_step} is {(self.champion_lifespan - last_step) / self.champion_lifespan}% below champion.")
+
+        # Track Champion Epoch
+
 
         print(f"Epoch {epoch+1}/{epochs} completed.")
 
