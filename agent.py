@@ -35,16 +35,21 @@ class Agent:
         self.grid = grid
         self.alive = True
         self.symbol = AGENT
-        
-        # Hunger / Thirst
+
+        # Health Attributes
+        self.happiness = 1.0
+        self.health_max = 10
+        self.damage_threshold = 1
+        self.pain_threshold = .65
         self.hunger_max = base_hunger
         self.thirst_max = base_thirst
         self.hunger = self.hunger_max
         self.thirst = self.thirst_max
+        self.health = self.health_max
         
         # input_size now guaranteed to match perceive() output
         input_size = self.sight_range * self.cone_width
-        hidden_size = 16
+        hidden_size = 32
         action_size = 8
         self.network = ActorCriticNetwork(input_size, hidden_size, action_size)
         self.optimizer = tf.keras.optimizers.Adam(learning_rate)
@@ -122,77 +127,155 @@ class Agent:
 
     # --- Movement ---
     def move(self, action):
-        reward = 0
-        # Death check
-        if (self.is_dead()):
+        event = None
+        if self.is_dead():
             self.grid.mark_corpse(self.x, self.y)
-            reward = -20
-            return reward   
-            
+            return self.compute_reward(event="death")
+
         self.dir = action
         dx, dy = self.DIRECTIONS[action]
         nx, ny = self.x + dx, self.y + dy
 
         if 0 <= nx < self.grid.width and 0 <= ny < self.grid.height:
             cell = self.grid.cells[ny][nx]
-
-            # --- Eat / Drink logic ---
             if cell == FOOD:
-                reward = 50/self.hunger
                 self.hunger = self.hunger_max
-                cell = EMPTY  # consume food
+                self.happiness *= 1.05
+                event = "eat"
+                self.grid.cells[ny][nx] = EMPTY
             elif cell == WATER:
-                reward = 20/self.thirst
                 self.thirst = self.thirst_max
+                self.happiness *= 1.05
+                event = "drink"
+            elif cell == DANGER:
+                self.hurt(3)
+                event = "danger"
 
-            # Update grid positions
+            # Move agent
             self.grid.cells[self.y][self.x] = EMPTY
             self.x, self.y = nx, ny
             self.grid.cells[self.y][self.x] = AGENT
 
-        # check bounds
-        if 0 <= nx < len(self.grid.cells[0]) and 0 <= ny < len(self.grid.cells):
-            self.x, self.y = nx, ny
-            
-        # --- Update ---
+        # Tick down hunger and thirst
         self.hunger -= 1
-        self.thirst -= 1        
+        self.thirst -= 1
+        self.biostasis()
 
-        return reward
+        return self.compute_reward(event)
     
     # --- Education ---
-    def learn(self, gamma=0.99):
-        for obs, action, reward, next_obs, alive in self.memory:
-            done = 0.0 if alive else 1.0
-            obs = tf.convert_to_tensor([obs], dtype=tf.float32)
-            next_obs = tf.convert_to_tensor([next_obs], dtype=tf.float32)
+    def learn(self, gamma=0.99, entropy_beta=0.01, n_steps=3, clip_delta=1.0):
+        """
+        Multi-step advantage actor-critic learning.
+        Uses n-step returns to capture longer-term reward relationships.
+        """
+        if len(self.memory) < n_steps:
+            return  # not enough experiences
 
-        # Compute target and advantage
-        _, value = self.network(obs)
-        _, next_value = self.network(next_obs)
-        target = reward + (1 - done) * gamma * next_value
-        delta = target - value
+        # Convert memory to arrays for easier slicing
+        obs_list, act_list, rew_list, next_obs_list, alive_list = zip(*self.memory)
 
-        with tf.GradientTape() as tape:
-            policy, value = self.network(obs)
-            action_prob = policy[0, action]
-            actor_loss = -tf.math.log(tf.cast(action_prob, tf.float32) + 1e-8) * delta
-            critic_loss = tf.square(delta)
-            total_loss = actor_loss + critic_loss
+        for t in range(len(self.memory) - n_steps):
+            # Build n-step cumulative return
+            G = 0.0
+            for k in range(n_steps):
+                G += (gamma ** k) * rew_list[t + k]
+            done = 0.0 if alive_list[t + n_steps - 1] else 1.0
 
-        grads = tape.gradient(total_loss, self.network.trainable_variables)
-        self.optimizer.apply_gradients(zip(grads, self.network.trainable_variables))
+            obs = tf.convert_to_tensor([obs_list[t]], dtype=tf.float32)
+            next_obs = tf.convert_to_tensor([next_obs_list[t + n_steps - 1]], dtype=tf.float32)
+
+            with tf.GradientTape() as tape:
+                policy, value = self.network(obs)
+                _, next_value = self.network(next_obs)
+
+                # Target and advantage
+                target = G + (1 - done) * (gamma ** n_steps) * next_value
+                advantage = tf.clip_by_value(target - value, -clip_delta, clip_delta)
+
+                # Compute losses
+                action_prob = policy[0, act_list[t]]
+                log_prob = tf.math.log(action_prob + 1e-8)
+                actor_loss = -log_prob * tf.stop_gradient(advantage)
+                critic_loss = tf.square(advantage)
+                entropy = -tf.reduce_sum(policy * tf.math.log(policy + 1e-8))
+
+                total_loss = actor_loss + 0.5 * critic_loss - entropy_beta * entropy
+
+            grads = tape.gradient(total_loss, self.network.trainable_variables)
+            if None not in grads:
+                self.optimizer.apply_gradients(zip(grads, self.network.trainable_variables))
 
         # Clear memory after learning
         self.memory = []
     
+    # --- Biostasis (a.k.a. Health Update) ---
+    def biostasis(self):
+        if self.hunger <= 0:
+            self.hurt(1)
+        if self.thirst <= 0:
+            self.hurt(1)
+            
+        if self.hunger > self.hunger_max:
+            self.hunger_max += 5
+            self.hunger = self.hunger_max
+        if self.thirst > self.thirst_max:
+            self.thirst_max += 5
+            self.thirst = self.thirst_max
+            
+        if self.health < self.health_max * self.pain_threshold:
+            self.happiness *= .95
+    
+    # --- Compute Reward ---
+    def compute_reward(self, event=None):
+        """
+        Compute the reward for the agent.
+        event: optional string to emphasize specific event triggers like 'eat', 'drink', or 'death'.
+        """
+        # Base survival reward — just staying alive
+        reward = 0.1
+
+        # Strong event-based signals
+        if event == "eat":
+            reward += 10.0
+        elif event == "drink":
+            reward += 5.0
+        elif event == "death":
+            reward -= 20.0
+        elif event == "danger":
+            reward -= 10.0
+
+        # Penalize low hunger/thirst gradually
+        hunger_penalty = max(0, 1 - (self.hunger / self.hunger_max))
+        thirst_penalty = max(0, 1 - (self.thirst / self.thirst_max))
+        reward -= 2.0 * (hunger_penalty + thirst_penalty)
+
+        # Small health-based adjustment
+        reward += (self.health / self.health_max - 1) * 5.0
+
+        # Keep reward within sane range
+        reward = np.clip(reward, -25.0, 15.0)
+        return reward
+
+        
+    # --- Hurt Function ---
+    def hurt(self, damage):
+        self.health -= damage
+        if self.health < 0:
+            self.health = 0
+            self.is_dead(force=True)
+        return self.health
+
+    # --- Death Check ---
     def is_dead(self, force=False):
-        self.alive = not (force or self.hunger <= 0 or self.thirst <= 0)
+        self.alive = not (force or self.health <= 0)
         return not self.alive
     
     # --- Reset ---
     def reset(self):
         self.hunger = self.hunger_max
         self.thirst = self.thirst_max
+        self.health = self.health_max
+        self.happiness = 1.0
         self.alive = True
         self.grid.cells[self.y][self.x] = AGENT
