@@ -23,7 +23,8 @@ class Agent:
         (0, 1),    # S
         (-1, 1),   # SW
         (-1, 0),   # W
-        (-1, -1)   # NW
+        (-1, -1),  # NW
+        (0, 0)     # Sit
     ]
 
     def __init__(self, x, y, grid, sight_range=3, cone_width=3, learning_rate=.002, base_hunger=15, base_thirst=45):
@@ -47,15 +48,23 @@ class Agent:
         self.thirst = self.thirst_max
         self.health = self.health_max
         
+        # Achievement Attributes
+        self.times_eaten = 0
+        self.times_drank = 0
+        self.steps_in_pain = 0
+        self.was_in_pain = False
+        self.happiness_max = 1.0        # Maximum Happiness ever recorded
+        self.happiness_min = 1.0        # Minimum Happiness ever recorded
+        self.happiness_total = 0.0      # Total Lifetime Happiness
+        self.death_step = None          # Deathdate
+        
         # input_size now guaranteed to match perceive() output
         input_size = self.sight_range * self.cone_width
         hidden_size = 32
         action_size = 8
-        self.network = ActorCriticNetwork(input_size, hidden_size, action_size)
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate)
         
         # Brain Stuff
-        self.memory = []
+        self.local_memory = []
         
     # --- Perception ---
     def perceive(self):
@@ -112,7 +121,8 @@ class Agent:
     # --- Decision Making ---
     def decide(self, obs):
         # Get policy and value from the network
-        policy, value = self.network(obs)
+        policy, value = self.trainer.network(obs)
+
 
         # Convert to numpy and flatten
         policy = policy.numpy()[0]
@@ -133,20 +143,38 @@ class Agent:
             return self.compute_reward(event="death")
 
         self.dir = action
-        dx, dy = self.DIRECTIONS[action]
+
+            # Handle movement / sit still
+        if action >= len(self.DIRECTIONS) - 1:  # last action is sit still
+            dx, dy = 0, 0
+            self.happiness *= 0.98  # Slight decrease for being idle
+            event = "idle"
+        else:
+            dx, dy = self.DIRECTIONS[action]
+         
+            
         nx, ny = self.x + dx, self.y + dy
 
         if 0 <= nx < self.grid.width and 0 <= ny < self.grid.height:
             cell = self.grid.cells[ny][nx]
             if cell == FOOD:
                 self.hunger = self.hunger_max
-                self.happiness *= 1.05
+                self.happiness *= 1.1
                 event = "eat"
                 self.grid.cells[ny][nx] = EMPTY
+                self.times_eaten += 1
+            elif cell == CORPSE:
+                self.hunger = self.hunger_max
+                self.happiness *= .5
+                event = "eat"
+                self.grid.cells[ny][nx] = EMPTY
+                self.times_eaten += 1
             elif cell == WATER:
                 self.thirst = self.thirst_max
                 self.happiness *= 1.05
                 event = "drink"
+                self.grid.cells[ny][nx] = EMPTY
+                self.times_drank += 1
             elif cell == DANGER:
                 self.hurt(3)
                 event = "danger"
@@ -160,54 +188,20 @@ class Agent:
         self.hunger -= 1
         self.thirst -= 1
         self.biostasis()
+            
+        if self.is_dead():
+            self.grid.mark_corpse(self.x, self.y)
+            event = "death"
 
         return self.compute_reward(event)
     
-    # --- Education ---
-    def learn(self, gamma=0.99, entropy_beta=0.01, n_steps=3, clip_delta=1.0):
-        """
-        Multi-step advantage actor-critic learning.
-        Uses n-step returns to capture longer-term reward relationships.
-        """
-        if len(self.memory) < n_steps:
-            return  # not enough experiences
+    # --- Act ---
+    def act(self, shared_network):
+        obs = self.perceive()
+        policy, value = shared_network(tf.convert_to_tensor([obs], dtype=tf.float32))
+        action = np.random.choice(len(policy[0]), p=policy[0].numpy())
+        return obs, action, value
 
-        # Convert memory to arrays for easier slicing
-        obs_list, act_list, rew_list, next_obs_list, alive_list = zip(*self.memory)
-
-        for t in range(len(self.memory) - n_steps):
-            # Build n-step cumulative return
-            G = 0.0
-            for k in range(n_steps):
-                G += (gamma ** k) * rew_list[t + k]
-            done = 0.0 if alive_list[t + n_steps - 1] else 1.0
-
-            obs = tf.convert_to_tensor([obs_list[t]], dtype=tf.float32)
-            next_obs = tf.convert_to_tensor([next_obs_list[t + n_steps - 1]], dtype=tf.float32)
-
-            with tf.GradientTape() as tape:
-                policy, value = self.network(obs)
-                _, next_value = self.network(next_obs)
-
-                # Target and advantage
-                target = G + (1 - done) * (gamma ** n_steps) * next_value
-                advantage = tf.clip_by_value(target - value, -clip_delta, clip_delta)
-
-                # Compute losses
-                action_prob = policy[0, act_list[t]]
-                log_prob = tf.math.log(action_prob + 1e-8)
-                actor_loss = -log_prob * tf.stop_gradient(advantage)
-                critic_loss = tf.square(advantage)
-                entropy = -tf.reduce_sum(policy * tf.math.log(policy + 1e-8))
-
-                total_loss = actor_loss + 0.5 * critic_loss - entropy_beta * entropy
-
-            grads = tape.gradient(total_loss, self.network.trainable_variables)
-            if None not in grads:
-                self.optimizer.apply_gradients(zip(grads, self.network.trainable_variables))
-
-        # Clear memory after learning
-        self.memory = []
     
     # --- Biostasis (a.k.a. Health Update) ---
     def biostasis(self):
@@ -244,6 +238,9 @@ class Agent:
             reward -= 20.0
         elif event == "danger":
             reward -= 10.0
+        elif event == "idle":
+            reward -= 5.0
+            
 
         # Penalize low hunger/thirst gradually
         hunger_penalty = max(0, 1 - (self.hunger / self.hunger_max))
@@ -252,6 +249,12 @@ class Agent:
 
         # Small health-based adjustment
         reward += (self.health / self.health_max - 1) * 5.0
+
+        # Decrease if in Pain
+        if self.health < self.health_max * self.pain_threshold:
+            reward *= 0.75
+        # Multiply by happiness factor
+        reward *= self.happiness
 
         # Keep reward within sane range
         reward = np.clip(reward, -25.0, 15.0)
@@ -271,11 +274,31 @@ class Agent:
         self.alive = not (force or self.health <= 0)
         return not self.alive
     
-    # --- Reset ---
     def reset(self):
+        # Remove agent’s old position if needed
+        if self.grid.cells[self.y][self.x] == AGENT:
+            self.grid.cells[self.y][self.x] = EMPTY
+
+        # Restore stats
         self.hunger = self.hunger_max
         self.thirst = self.thirst_max
         self.health = self.health_max
         self.happiness = 1.0
         self.alive = True
+        self.times_eaten = 0
+        self.times_drank = 0
+        self.steps_in_pain = 0
+        self.was_in_pain = False
+        self.death_step = None
+
+        # Reset memory and temporary learning buffers
+        self.local_memory.clear()
+
+        # Place back on the grid
         self.grid.cells[self.y][self.x] = AGENT
+
+    def set_trainer(self, trainer):
+        """
+        Assign a centralized trainer to the agent.
+        """
+        self.trainer = trainer

@@ -1,7 +1,7 @@
 ﻿# Grid Script
 # Author:   K. E. Brown, Chad GPT.
 # First:    2025-10-03
-# Updated:  2025-10-06
+# Updated:  2025-10-08
 
 # Imports
 import numpy as np
@@ -59,11 +59,11 @@ class Grid:
         for y in range(self.height):
             for x in range(self.width):
                 val = elevation[y][x]
-                if val < 0.46:
+                if val < 0.47:
                     self.cells[y][x] = WATER
                 elif val < 0.55:
                     self.cells[y][x] = EMPTY
-                elif val < 0.65:
+                elif val < 0.6:
                     self.cells[y][x] = TREE
                 else:
                     self.cells[y][x] = MOUNTAIN

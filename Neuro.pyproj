@@ -24,6 +24,7 @@
     <Compile Include="grid.py" />
     <Compile Include="network.py" />
     <Compile Include="Neuro.py" />
+    <Compile Include="stats.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="agent.py" />

@@ -1,8 +1,8 @@
-# Main Script for Neuro Project 
+﻿# Main Script for Neuro Project 
 # Version:  v 0.2.1
 # Author:   K. E. Brown, Chad GPT.
 # First:    2025-10-03
-# Updated:  2025-10-06
+# Updated:  2025-10-08
 
 
 # Imports
@@ -13,8 +13,13 @@ import tensorflow as tf
 
 from tkinter import Grid
 import numpy as np
+
+# Project Imports
 from grid import Grid, AGENT, EMPTY
 from agent import Agent
+from training import Trainer
+from stats import StatsTracker
+
 
 # Grid Script
 width = 50
@@ -31,102 +36,119 @@ init_thirst = 80
 init_perception = 5
 init_periferal = 3
 
-# Neural Network Scrip
+# Network/Trainer Script
 learning_rate = 0.1
-epochs = 10000
+hidden_size = 32
+action_size = 9     # 8 directions + stay put
+
+# Local Time Variables
+epochs = 5000
 sim_lifetime = 500
+learn_timer = 10
+prnt_timer = 5
+
+# Food Spawning Variables
+food_timer = 10
+food_count = 5
 
 def main():
     # Loop Tracking
     champion_epoch = -1
+    champion_steps = 0
+    champion_agent = None
     champion_lifespan = 0
     avg_lifespan = 0
+
+    # Create the Stat Tracker
+    stats = StatsTracker(total_epochs=epochs)
 
     # Create Grid
     grid = Grid(width, height, init_seed)
     
+    # Create the Trainer
+    trainer = Trainer(input_size=init_perception * init_periferal, hidden_size=hidden_size, action_size=action_size, lr=learning_rate)
+
     # Initialize Agents
     for _ in range(init_population):
-       agents.append(Agent(0, 0, grid, init_perception, init_periferal, learning_rate, init_hunger, init_thirst))
-                   
-    # Training Loop
-    for epoch in range(epochs):
-        # Create Grid
-        grid.reseed(init_seed + (epoch * epochs))
-        
-        print(f"\n=== Epoch {epoch+1}/{epochs} ===")
-        last_step = -1
-        
-        # Reset Grid
-        grid.init()
-        grid.render()
+        a = Agent(0, 0, grid, init_perception, init_periferal, learning_rate, init_hunger, init_thirst)
+        a.set_trainer(trainer)
+        agents.append(a)       
 
-        # Reset Agents
+    # --- Training Loop ---
+    for epoch in range(epochs):
+
+        grid.reseed(init_seed + (epoch * epochs))
+        print(f"\n=== Epoch {epoch+1}/{epochs} ===")
+
+        # Reset grid and agents
+        grid.init()
         for agent in agents:
             agent.reset()
-
         grid.populate(agents)
-        # for a in agents[:5]:
-        #     print(a.x, a.y, grid.cells[a.y][a.x])
-            
+
+        last_step = -1
+
         # Simulation Loop
         for step in range(sim_lifetime):
             alive_agents = [a for a in agents if a.alive]
             if not alive_agents:
                 print(f"All agents dead at step {step}. Starting next epoch.")
-                break  # End this epoch early
-        
-            for agent in agents:
-                if not agent.alive:
-                    continue
+                break
+
+            # --- Agent Actions ---
+            for agent in alive_agents:
                 obs = agent.perceive()
-                action, value = agent.decide(tf.convert_to_tensor([obs], dtype=tf.float32))
-                
+                obs_tensor = tf.convert_to_tensor([obs], dtype=tf.float32)
+
+                # Get action + predicted value (for potential advantage estimation)
+                action, value = agent.decide(obs_tensor)
+
+                # Execute action
                 reward = agent.move(action)
                 next_obs = agent.perceive()
-                
-                agent.memory.append((obs, action, reward, next_obs, agent.alive))
-            
-            # Spawn new food periodically
-            if (step % (sim_lifetime / 10) == 0):
-                grid.spawn_food()
-            
-            # Render grid periodically
-            if (step % (sim_lifetime / 5) == 0):
-                grid.render()
-                
-            # Agents learn periodically
-            if (step % (sim_lifetime / 100) == 0):
-                for agent in agents:
-                    if agent.memory:
-                        agent.learn()
 
+                # Store transition
+                trainer.store(obs, action, reward, next_obs, agent.alive)
+
+            # --- Environment Maintenance ---
+            if step % food_timer == 0:
+                grid.spawn_food(food_count)
+
+            # Render periodically for debugging
+            if step % prnt_timer == 0:
+                grid.render()
+
+            # --- Periodic Learning ---
+            if step % learn_timer == 0 and trainer.memory:
+                trainer.learn()
 
             last_step = step
-        
-        # Learn before end of epoch
-        for agent in agents:
-            if agent.memory:
-                agent.learn()
-                
-        if (last_step > champion_lifespan):
+
+        # --- End-of-Epoch Learning ---
+        if trainer.memory:
+            trainer.learn()
+
+        # --- Stats Tracking ---
+        if last_step > champion_lifespan:
             champion_lifespan = last_step
             champion_epoch = epoch
-            print(f"New Champion Epoch: {champion_epoch+1} with Lifespan: {champion_lifespan}")
+            print(f"🏆 New Champion Epoch: {champion_epoch+1} with Lifespan: {champion_lifespan}")
         else:
-            print(f"Epoch Ended Below Champion: step {last_step} is {(champion_lifespan - last_step) * 100 / champion_lifespan:.2f}% below Champion: {champion_lifespan}.")
-            
-        if (epoch == 0):
-            avg_lifespan = last_step
-        else:
-            avg_lifespan = (avg_lifespan + last_step) / 2
-            
-        print(f"Average Epoch Lifespan: {avg_lifespan:.2f}, This Run: {(last_step/avg_lifespan) * 100:.2f}% of avg")
+            diff = (champion_lifespan - last_step) * 100 / champion_lifespan
+            print(f"Epoch Ended Below Champion: step {last_step} is {diff:.2f}% below Champion: {champion_lifespan}.")
 
-        # Track Champion Epoch
-
+        avg_lifespan = last_step if epoch == 0 else (avg_lifespan + last_step) / 2
+        print(f"Average Epoch Lifespan: {avg_lifespan:.2f}, This Run: {(last_step / avg_lifespan) * 100:.2f}% of avg")
 
         print(f"Epoch {epoch+1}/{epochs} completed.")
+        
+        # --- Re-alive Agents for Next Epoch ---
+        for agent in agents:
+            agent.reset()
+
+    # --- Summary ---
+    print(f"\nTraining completed. Champion Epoch: {champion_epoch+1} with Lifespan: {champion_lifespan}.")
+    print(f"Average Lifespan: {avg_lifespan:.2f}")
     
     # End of Sim Summary
     print(f"\nTraining completed. Champion Epoch: {champion_epoch+1} with Lifespan: {champion_lifespan}. Average Lifespan: {avg_lifespan}")
