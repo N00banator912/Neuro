@@ -77,7 +77,7 @@ def main():
     # --- Training Loop ---
     for epoch in range(epochs):
 
-        grid.reseed(init_seed + (epoch * epochs))
+        grid.reseed((init_seed + (epoch * epochs)) * (1 + (epoch/epochs)))
         print(f"\n=== Epoch {epoch+1}/{epochs} ===")
 
         # Reset grid and agents

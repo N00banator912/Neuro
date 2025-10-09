@@ -155,6 +155,7 @@ class Agent:
             
         nx, ny = self.x + dx, self.y + dy
 
+        # Bounds Checking
         if 0 <= nx < self.grid.width and 0 <= ny < self.grid.height:
             cell = self.grid.cells[ny][nx]
             if cell == FOOD:
@@ -173,11 +174,18 @@ class Agent:
                 self.thirst = self.thirst_max
                 self.happiness *= 1.05
                 event = "drink"
-                self.grid.cells[ny][nx] = EMPTY
                 self.times_drank += 1
             elif cell == DANGER:
                 self.hurt(3)
                 event = "danger"
+            # All other cells Impassable
+            elif cell != EMPTY:
+                nx, ny = self.x, self.y
+                self.happiness *= 0.99  # Slight decrease for failed move
+                event = "bump"      
+            else:
+                self.happiness *= 1.1  # Slight increase for successful move
+                event = "move"
 
             # Move agent
             self.grid.cells[self.y][self.x] = EMPTY
@@ -230,16 +238,20 @@ class Agent:
         reward = 0.1
 
         # Strong event-based signals
-        if event == "eat":
+        if event == "eat":      # Agent Ate: Very Good (usually)
+            reward += 20.0
+        elif event == "drink":  # Agent Drank: Good
             reward += 10.0
-        elif event == "drink":
-            reward += 5.0
-        elif event == "death":
+        elif event == "death":  # Agent Died: Very Bad
             reward -= 20.0
-        elif event == "danger":
+        elif event == "danger": # Agent Hit Danger: Pretty Bad
             reward -= 10.0
-        elif event == "idle":
+        elif event == "idle":   # Agent Sat Still: Lazy
             reward -= 5.0
+        elif event == "bump":   # Agent Bumped: Tried to explore, but failed = not too bad
+            reward += 0.5
+        elif event == "move":   # Agent Moved Successfully: Good
+            reward += 2.0
             
 
         # Penalize low hunger/thirst gradually
@@ -253,7 +265,9 @@ class Agent:
         # Decrease if in Pain
         if self.health < self.health_max * self.pain_threshold:
             reward *= 0.75
+            
         # Multiply by happiness factor
+        self.happiness = np.clip(self.happiness, 0.1, 2.0)
         reward *= self.happiness
 
         # Keep reward within sane range
