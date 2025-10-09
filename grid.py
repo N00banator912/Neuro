@@ -4,6 +4,7 @@
 # Updated:  2025-10-08
 
 # Imports
+from turtle import position
 import numpy as np
 import random
 import os
@@ -21,7 +22,7 @@ MOUNTAIN = "^"
 
 # Parameters
 DangerCount = 3
-init_food_density = 0.1
+init_food_density = 0.7  # Percentage of grid cells to fill with food at init
 
 class Grid:
     def __init__(self, width=25, height=25, seed=69420):
@@ -70,11 +71,10 @@ class Grid:
 
         # --- Place food ---
         food_count = int(self.width * self.height * init_food_density)
+        # print (f"Placing {food_count} food items.")
         self.food_pos = []
-        for _ in range(3):
-            self.spawn_food(count=food_count // 3,
-                            position=[random.randrange(int(self.width / 4), int(self.width * 3 / 4)),
-                                      random.randrange(int(self.height / 4), int(self.height * 3 / 4))])
+        for _ in range(int(food_count/5)):
+            self.spawn_food(position=self._rand_pos())
 
         # --- Place dangers ---
         self.danger_pos = []

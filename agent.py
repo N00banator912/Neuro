@@ -1,7 +1,7 @@
 ﻿# Agent Class, a.k.a. "Lil' Guys"
 # Author:   K. E. Brown, Chad GPT.
 # First:    2025-10-03
-# Updated:  2025-10-06
+# Updated:  2025-10-09
 
 # Imports
 import os
@@ -30,7 +30,7 @@ class Agent:
     def __init__(self, x, y, grid, sight_range=3, cone_width=3, learning_rate=.002, base_hunger=15, base_thirst=45):
         self.x = x
         self.y = y
-        self.dir = 0  # facing north initially
+        self.dir = 0  # Initial direction: North
         self.sight_range = sight_range
         self.cone_width = max(1, min(8, cone_width))
         self.grid = grid
@@ -57,6 +57,7 @@ class Agent:
         self.happiness_min = 1.0        # Minimum Happiness ever recorded
         self.happiness_total = 0.0      # Total Lifetime Happiness
         self.death_step = None          # Deathdate
+        self.visited = set()
         
         # input_size now guaranteed to match perceive() output
         input_size = self.sight_range * self.cone_width
@@ -142,7 +143,7 @@ class Agent:
             self.grid.mark_corpse(self.x, self.y)
             return self.compute_reward(event="death")
 
-        self.dir = action
+        self.dir = (self.dir + action) % len(self.DIRECTIONS)
 
             # Handle movement / sit still
         if action >= len(self.DIRECTIONS) - 1:  # last action is sit still
@@ -165,7 +166,7 @@ class Agent:
                 self.grid.cells[ny][nx] = EMPTY
                 self.times_eaten += 1
             elif cell == CORPSE:
-                self.hunger = self.hunger_max
+                self.hunger = self.hunger_max * .5
                 self.happiness *= .5
                 event = "eat"
                 self.grid.cells[ny][nx] = EMPTY
@@ -181,22 +182,34 @@ class Agent:
             # All other cells Impassable
             elif cell != EMPTY:
                 nx, ny = self.x, self.y
-                self.happiness *= 0.99  # Slight decrease for failed move
+                self.happiness *= 0.9  # Slight decrease for failed move
                 event = "bump"      
             else:
                 self.happiness *= 1.1  # Slight increase for successful move
                 event = "move"
 
+            if (nx, ny) not in self.visited:
+                self.visited.add((nx, ny))
+                self.happiness *= 1.5  # Slight increase for exploring
+
             # Move agent
             self.grid.cells[self.y][self.x] = EMPTY
             self.x, self.y = nx, ny
             self.grid.cells[self.y][self.x] = AGENT
-
+        else:   # Out of bounds
+            self.happiness *= 0.99  # Slight decrease for failed move
+            event = "bump"
+            
         # Tick down hunger and thirst
         self.hunger -= 1
         self.thirst -= 1
         self.biostasis()
-            
+        
+        #if event in ["eat"]:
+        #    print(f"Agent {id(self)} ate(x={self.x}, y={self.y})")
+        #elif event in ["drink"]:
+        #    print(f"Agent {id(self)} drank(x={self.x}, y={self.y})")
+
         if self.is_dead():
             self.grid.mark_corpse(self.x, self.y)
             event = "death"
@@ -239,19 +252,19 @@ class Agent:
 
         # Strong event-based signals
         if event == "eat":      # Agent Ate: Very Good (usually)
-            reward += 20.0
+            reward += 50.0
         elif event == "drink":  # Agent Drank: Good
-            reward += 10.0
+            reward += 15.0
         elif event == "death":  # Agent Died: Very Bad
             reward -= 20.0
         elif event == "danger": # Agent Hit Danger: Pretty Bad
             reward -= 10.0
         elif event == "idle":   # Agent Sat Still: Lazy
-            reward -= 5.0
+            reward -= 1.0
         elif event == "bump":   # Agent Bumped: Tried to explore, but failed = not too bad
-            reward += 0.5
+            reward -= 0.2
         elif event == "move":   # Agent Moved Successfully: Good
-            reward += 2.0
+            reward += 5.0
             
 
         # Penalize low hunger/thirst gradually
@@ -307,6 +320,7 @@ class Agent:
 
         # Reset memory and temporary learning buffers
         self.local_memory.clear()
+        self.visited.clear()
 
         # Place back on the grid
         self.grid.cells[self.y][self.x] = AGENT
