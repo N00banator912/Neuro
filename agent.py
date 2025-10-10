@@ -5,10 +5,12 @@
 
 # Imports
 import os
+from keras import activations
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import numpy as np
 import tensorflow as tf
 from network import ActorCriticNetwork  # assuming your network script is 'network.py'
+import random 
 
 # Import shared symbols and grid reference
 from grid import WATER, FOOD, DANGER, EMPTY, AGENT, CORPSE
@@ -30,7 +32,7 @@ class Agent:
     def __init__(self, x, y, grid, sight_range=3, cone_width=3, learning_rate=.002, base_hunger=15, base_thirst=45):
         self.x = x
         self.y = y
-        self.dir = 0  # Initial direction: North
+        self.dir = random.randint(0, 7)  # Random initial direction
         self.sight_range = sight_range
         self.cone_width = max(1, min(8, cone_width))
         self.grid = grid
@@ -57,7 +59,13 @@ class Agent:
         self.happiness_min = 1.0        # Minimum Happiness ever recorded
         self.happiness_total = 0.0      # Total Lifetime Happiness
         self.death_step = None          # Deathdate
+        
+        # Movement Attributes
         self.visited = set()
+        self.last_action = None
+        self.last_failed = False
+        self.tile_under = EMPTY
+
         
         # input_size now guaranteed to match perceive() output
         input_size = self.sight_range * self.cone_width
@@ -108,12 +116,12 @@ class Agent:
 
             # pad ray to sight_range length
             while len(ray_values) < self.sight_range:
-                ray_values.append(0)
+                ray_values.append(-5)
 
             perception.extend(ray_values)
             
         while len(perception) < self.sight_range * self.cone_width:
-            perception.append(0)
+            perception.append(-5)
 
 
         # Normalize for neural net input
@@ -130,6 +138,15 @@ class Agent:
 
         # Normalize just in case of rounding errors
         policy = policy / np.sum(policy)
+
+        # Decrease probability of repeating last failed action
+        if self.last_failed and self.last_action is not None:
+            policy[self.last_action] *= 0.25  # reduce its weight drastically
+            policy = policy / np.sum(policy)  # renormalize
+        elif self.last_action == 8:  # if last action was 'sit'
+            policy[self.last_action] *= 0.66  # reduce its weight moderately
+            policy = policy / np.sum(policy)  # renormalize
+
 
         # Choose action based on probabilities
         action = np.random.choice(len(policy), p=policy)
@@ -193,12 +210,19 @@ class Agent:
                 self.happiness *= 1.5  # Slight increase for exploring
 
             # Move agent
-            self.grid.cells[self.y][self.x] = EMPTY
+            self.grid.cells[self.y][self.x] = self.tile_under
+            self.tile_under = self.grid.cells[ny][nx]
+            if self.tile_under == FOOD:
+                self.tile_under = EMPTY  # Food will be eaten when stepped on, so we don't want it to be replaced when moving away
             self.x, self.y = nx, ny
             self.grid.cells[self.y][self.x] = AGENT
         else:   # Out of bounds
             self.happiness *= 0.99  # Slight decrease for failed move
             event = "bump"
+            
+        self.last_failed = (event == "bump")
+        self.last_action = action
+
             
         # Tick down hunger and thirst
         self.hunger -= 1
@@ -206,9 +230,10 @@ class Agent:
         self.biostasis()
         
         #if event in ["eat"]:
-        #    print(f"Agent {id(self)} ate(x={self.x}, y={self.y})")
+        #    print(f"Agent {id(self)} ate(x={self.x}, y={self.y}), Hunger: {self.hunger}, Happiness: {self.happiness:.2f}")
         #elif event in ["drink"]:
-        #    print(f"Agent {id(self)} drank(x={self.x}, y={self.y})")
+        #    print(f"Agent {id(self)} drank(x={self.x}, y={self.y}), Thirst: {self.thirst}, Happiness: {self.happiness:.2f}")
+            
 
         if self.is_dead():
             self.grid.mark_corpse(self.x, self.y)
@@ -284,7 +309,9 @@ class Agent:
         reward *= self.happiness
 
         # Keep reward within sane range
-        reward = np.clip(reward, -25.0, 15.0)
+        # print (f"Agent {id(self)} Reward (pre-clip): {reward}")
+        reward = np.clip(reward, -25.0, 30.0)
+        # print (f"Agent {id(self)}, Action: {event}, Reward: {reward}")
         return reward
 
         

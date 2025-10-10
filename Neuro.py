@@ -44,7 +44,7 @@ action_size = 9     # 8 directions + stay put
 # Local Time Variables
 epochs = 5000
 sim_lifetime = 500
-learn_timer = 10
+learn_timer = 3
 prnt_timer = 5
 
 # Food Spawning Variables
@@ -92,6 +92,7 @@ def main():
         for step in range(sim_lifetime):
             alive_agents = [a for a in agents if a.alive]
             if not alive_agents:
+                grid.render()
                 print(f"All agents dead at step {step}. Starting next epoch.")
                 break
 

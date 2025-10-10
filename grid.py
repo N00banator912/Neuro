@@ -19,6 +19,9 @@ WATER = "~"
 DANGER = "X"
 TREE    = "T"
 MOUNTAIN = "^"
+GRAVE = "t"
+HOUSE = "h"
+LUMBER = "="
 
 # Parameters
 DangerCount = 3
