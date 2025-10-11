@@ -1,7 +1,7 @@
 ﻿# Grid Script
 # Author:   K. E. Brown, Chad GPT.
 # First:    2025-10-03
-# Updated:  2025-10-08
+# Updated:  2025-10-11
 
 # Imports
 from turtle import position
@@ -34,6 +34,7 @@ class Grid:
         self.cells = [[EMPTY for _ in range(width)] for _ in range(height)]
         self.food_pos = []
         self.danger_pos = []
+        self.agents = []
         random.seed(seed)
 
     def init(self):
@@ -121,6 +122,16 @@ class Grid:
                     self.cells[y][x] = AGENT
                     agent.grid = self
                     break
+
+    def get_agent_at(self, x, y):
+        """
+        Returns the agent object at the given coordinates, if any.
+        """
+        for agent in self.agents:
+            if agent.x == x and agent.y == y and agent.alive:
+                return agent
+        return None
+
 
     def spawn_food(self, count=5, position=[0, 0], radius=2):
         ax, ay = position

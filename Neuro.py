@@ -2,7 +2,7 @@
 # Version:  v 0.2.1
 # Author:   K. E. Brown, Chad GPT.
 # First:    2025-10-03
-# Updated:  2025-10-08
+# Updated:  2025-10-11
 
 
 # Imports
@@ -11,6 +11,7 @@ import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import tensorflow as tf
 
+import random
 from tkinter import Grid
 import numpy as np
 
@@ -19,7 +20,7 @@ from grid import Grid, AGENT, EMPTY
 from agent import Agent
 from training import Trainer
 from stats import StatsTracker
-
+from logger import Logger
 
 # Grid Script
 width = 50
@@ -27,7 +28,7 @@ height = 20
 init_seed = 42069
 
 # Agent Population
-init_population = 15
+init_population = 20
 agents = []
 
 # Agent Initial Attribute Distribution
@@ -42,10 +43,11 @@ hidden_size = 32
 action_size = 9     # 8 directions + stay put
 
 # Local Time Variables
-epochs = 5000
+epochs = 500
 sim_lifetime = 500
-learn_timer = 3
-prnt_timer = 5
+learn_timer = 2
+prnt_timer = 2
+network_print_timer = 5
 
 # Food Spawning Variables
 food_timer = 10
@@ -59,9 +61,10 @@ def main():
     champion_lifespan = 0
     avg_lifespan = 0
 
-    # Create the Stat Tracker
+    # Create the Stat Tracker and Logger
     stats = StatsTracker(total_epochs=epochs)
-
+    logger = Logger(log_dir="logs/neuro")
+ 
     # Create Grid
     grid = Grid(width, height, init_seed)
     
@@ -73,6 +76,11 @@ def main():
         a = Agent(0, 0, grid, init_perception, init_periferal, learning_rate, init_hunger, init_thirst)
         a.set_trainer(trainer)
         agents.append(a)       
+
+    # Draw initial policy grid
+    if logger:
+        agent = random.choice(agents)
+        agent.visualize_policy_grid(trainer.network, logger=logger, step=0)            
 
     # --- Training Loop ---
     for epoch in range(epochs):
@@ -91,19 +99,29 @@ def main():
         # Simulation Loop
         for step in range(sim_lifetime):
             alive_agents = [a for a in agents if a.alive]
+            dead_agents = [a for a in agents if not a.alive]
             if not alive_agents:
                 grid.render()
                 print(f"All agents dead at step {step}. Starting next epoch.")
                 break
 
             # --- Agent Actions ---
-            for agent in alive_agents:
+            for agent in agents:
+                if not agent.alive:
+                    # Give one final strong negative transition on death
+                    if hasattr(agent, "last_obs") and hasattr(agent, "last_action"):
+                        trainer.store(agent.last_obs, agent.last_action, -20.0, agent.last_obs, False)
+                    continue
+                
+                # Perceive environment
                 obs = agent.perceive()
+                agent.last_obs = obs
                 obs_tensor = tf.convert_to_tensor([obs], dtype=tf.float32)
 
                 # Get action + predicted value (for potential advantage estimation)
                 action, value = agent.decide(obs_tensor)
-
+                agent.last_action = action
+                
                 # Execute action
                 reward = agent.move(action)
                 next_obs = agent.perceive()
@@ -128,6 +146,11 @@ def main():
         # --- End-of-Epoch Learning ---
         if trainer.memory:
             trainer.learn()
+        
+        # --- Print Network Logger ---
+        if epoch % network_print_timer == 0:
+            agent = random.choice(agents)
+            agent.visualize_policy_grid(trainer.network, logger=logger, step=epoch)            
 
         # --- Stats Tracking ---
         if last_step > champion_lifespan:

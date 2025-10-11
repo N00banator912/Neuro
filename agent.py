@@ -1,7 +1,7 @@
 ﻿# Agent Class, a.k.a. "Lil' Guys"
 # Author:   K. E. Brown, Chad GPT.
 # First:    2025-10-03
-# Updated:  2025-10-09
+# Updated:  2025-10-11
 
 # Imports
 import os
@@ -10,10 +10,14 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import numpy as np
 import tensorflow as tf
 from network import ActorCriticNetwork  # assuming your network script is 'network.py'
-import random 
+import random
+import matplotlib
+import matplotlib.pyplot as plt
 
 # Import shared symbols and grid reference
 from grid import WATER, FOOD, DANGER, EMPTY, AGENT, CORPSE
+
+matplotlib.use("Agg")  # Non-interactive, no GUI required
 
 class Agent:
     # Directions (8-way movement)
@@ -45,10 +49,14 @@ class Agent:
         self.damage_threshold = 1
         self.pain_threshold = .65
         self.hunger_max = base_hunger
+        self.hunger_loss = 1
         self.thirst_max = base_thirst
+        self.thirst_loss = 1
         self.hunger = self.hunger_max
         self.thirst = self.thirst_max
         self.health = self.health_max
+        self.power = 1
+        self.age = 0
         
         # Achievement Attributes
         self.times_eaten = 0
@@ -165,7 +173,7 @@ class Agent:
             # Handle movement / sit still
         if action >= len(self.DIRECTIONS) - 1:  # last action is sit still
             dx, dy = 0, 0
-            self.happiness *= 0.98  # Slight decrease for being idle
+            self.happiness *= 0.9  # Slight decrease for being idle
             event = "idle"
         else:
             dx, dy = self.DIRECTIONS[action]
@@ -196,6 +204,17 @@ class Agent:
             elif cell == DANGER:
                 self.hurt(3)
                 event = "danger"
+            elif cell == AGENT:
+                # Engage in combat
+                target = self.grid.get_agent_at(nx, ny)  # You'll need to add this helper in Grid (shown below)
+                if target and target.alive:
+                    event = "fight"
+                    self.fight(target)
+                else:
+                    # If no valid target found (shouldn’t happen)
+                    event = "bump"
+                nx, ny = self.x, self.y  # Stay in place after fighting
+
             # All other cells Impassable
             elif cell != EMPTY:
                 nx, ny = self.x, self.y
@@ -224,9 +243,7 @@ class Agent:
         self.last_action = action
 
             
-        # Tick down hunger and thirst
-        self.hunger -= 1
-        self.thirst -= 1
+        # Tick down hunger, thirst, etc.
         self.biostasis()
         
         #if event in ["eat"]:
@@ -238,6 +255,7 @@ class Agent:
         if self.is_dead():
             self.grid.mark_corpse(self.x, self.y)
             event = "death"
+            print(f"💀 Agent {id(self)} died at age {self.age} position({self.x}, {self.y})")
 
         return self.compute_reward(event)
     
@@ -247,14 +265,28 @@ class Agent:
         policy, value = shared_network(tf.convert_to_tensor([obs], dtype=tf.float32))
         action = np.random.choice(len(policy[0]), p=policy[0].numpy())
         return obs, action, value
-
-    
+        
     # --- Biostasis (a.k.a. Health Update) ---
     def biostasis(self):
+        self.age += 1
+        self.hunger -= self.hunger_loss
+        self.thirst -= self.thirst_loss
+
+        # secondary health effects
         if self.hunger <= 0:
             self.hurt(1)
+        elif self.hunger >= self.hunger_max and self.health < self.health_max:
+            self.hurt(-1)
+        
         if self.thirst <= 0:
             self.hurt(1)
+        elif self.thirst >= self.thirst_max and self.health < self.health_max:
+            self.hurt(-1)
+            
+        if self.happiness <= .6:
+            self.hurt(1)
+        if self.happiness >= .9 and self.health < self.health_max:
+            self.hurt(-1)
             
         if self.hunger > self.hunger_max:
             self.hunger_max += 5
@@ -265,7 +297,7 @@ class Agent:
             
         if self.health < self.health_max * self.pain_threshold:
             self.happiness *= .95
-    
+                
     # --- Compute Reward ---
     def compute_reward(self, event=None):
         """
@@ -273,46 +305,95 @@ class Agent:
         event: optional string to emphasize specific event triggers like 'eat', 'drink', or 'death'.
         """
         # Base survival reward — just staying alive
-        reward = 0.1
+        reward = 0.01
 
         # Strong event-based signals
-        if event == "eat":      # Agent Ate: Very Good (usually)
-            reward += 50.0
-        elif event == "drink":  # Agent Drank: Good
-            reward += 15.0
-        elif event == "death":  # Agent Died: Very Bad
-            reward -= 20.0
-        elif event == "danger": # Agent Hit Danger: Pretty Bad
-            reward -= 10.0
-        elif event == "idle":   # Agent Sat Still: Lazy
-            reward -= 1.0
-        elif event == "bump":   # Agent Bumped: Tried to explore, but failed = not too bad
-            reward -= 0.2
-        elif event == "move":   # Agent Moved Successfully: Good
-            reward += 5.0
+        if event == "eat":
+            reward += 1.00
+        elif event == "drink":
+            reward += 0.50
+        elif event == "death":
+            reward -= 1.00
+        elif event == "danger":
+            reward -= 0.50
+        elif event == "idle":
+            reward -= 0.20
+        elif event == "bump":
+            reward -= 0.05
+        elif event == "move":
+            reward += 0.02
+        elif event == "fight":
+            if self.is_dead():
+                reward -= 1.0
+                print(f"💀 Agent {id(self)} died in battle at age {self.age} position({self.x}, {self.y})")
+            else:
+            # Encourage victorious combat, discourage wasteful fights
+                reward += 0.3 if self.happiness > 1.0 else -0.3
+
             
 
         # Penalize low hunger/thirst gradually
-        hunger_penalty = max(0, 1 - (self.hunger / self.hunger_max))
-        thirst_penalty = max(0, 1 - (self.thirst / self.thirst_max))
-        reward -= 2.0 * (hunger_penalty + thirst_penalty)
+        hunger_penalty = max(0, 1 - (self.hunger / max(1, self.hunger_max)))
+        thirst_penalty = max(0, 1 - (self.thirst / max(1, self.thirst_max)))
+        reward -= 0.5 * (hunger_penalty + thirst_penalty)
 
         # Small health-based adjustment
-        reward += (self.health / self.health_max - 1) * 5.0
+        health_frac = self.health / max(1.0, self.health_max)
+        reward += (health_frac - 1.0) * 0.2  # small tweak: negative when hurt
 
         # Decrease if in Pain
         if self.health < self.health_max * self.pain_threshold:
             reward *= 0.75
             
         # Multiply by happiness factor
-        self.happiness = np.clip(self.happiness, 0.1, 2.0)
+        self.happiness = np.clip(self.happiness, 0.5, 1.5)
         reward *= self.happiness
 
         # Keep reward within sane range
         # print (f"Agent {id(self)} Reward (pre-clip): {reward}")
-        reward = np.clip(reward, -25.0, 30.0)
-        # print (f"Agent {id(self)}, Action: {event}, Reward: {reward}")
+        reward = np.clip(reward, -1.0, 1.0)
+        # print (f"Agent {id(self)}, Action: {event}, Reward: {reward:.1f}, Happiness: {self.happiness:.3f}")
         return reward
+
+    # --- Policy Visualization ---
+    def visualize_policy_grid(self, shared_network, logger=None, step=None):
+        """
+        Visualize the agent's current policy as a 3x3 grid of action probabilities.
+        The grid maps directional actions to their spatial equivalents.
+        """
+        obs = self.perceive()
+        policy, _ = shared_network(tf.convert_to_tensor([obs], dtype=tf.float32))
+        policy = policy.numpy()[0]
+        policy = policy / np.sum(policy)
+
+        # 3x3 layout mapping actions to direction
+        grid_layout = np.array([
+            [policy[7], policy[0], policy[1]],  # NW, N, NE
+            [policy[6], policy[8], policy[2]],  # W, SIT, E
+            [policy[5], policy[4], policy[3]]   # SW, S, SE
+        ])
+
+        fig, ax = plt.subplots(figsize=(3, 3))
+        im = ax.imshow(grid_layout, cmap="plasma", interpolation="nearest")
+
+        # Add probability text
+        for i in range(3):
+            for j in range(3):
+                ax.text(j, i, f"{grid_layout[i, j]:.2f}",
+                        ha="center", va="center", color="white", fontsize=10)
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(f"Policy Grid — Agent at ({self.x}, {self.y})")
+
+        # Optional colorbar
+        cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_label("Action Probability")
+
+        if logger:
+            logger.log_figure("policy_grid", fig, step=step)
+        plt.close(fig)
+
 
         
     # --- Hurt Function ---
@@ -321,12 +402,63 @@ class Agent:
         if self.health < 0:
             self.health = 0
             self.is_dead(force=True)
+        elif self.health > self.health_max:
+            self.health_max += 1
+            self.health = self.health_max
         return self.health
+
+    def fight(self, target):
+        """
+        Simple combat resolution between two agents.
+        Returns True if this agent wins, False otherwise.
+        """
+        if not target.alive:
+            return True  # target already dead
+        # Base combat logic: higher happiness & health gives advantage
+        self_power = self.health + self.happiness * random.uniform(0.8, 1.2)
+        target_power = target.health + target.happiness * random.uniform(0.8, 1.2)
+    
+        if hasattr(self, "grid"):
+            self.grid.fight_heatmap[self.y, self.x] += 1.0
+        
+        if self_power >= pow(target_power, 2):    
+            # Insta kill
+            target.is_dead(force=True)
+            target.happiness *= 0.2
+            self.happiness *= 1.05  # morale boost
+        elif self_power >= target_power * 2.0:
+            # Attacker wins
+            target.hurt(self.power * 2.0)
+            target.happiness *= 0.4
+            self.happiness *= 0.99  # combat stress
+            return True
+        elif self_power >= target_power:
+            # Attacker wins
+            target.hurt(self.power)
+            target.happiness *= 0.8
+            self.happiness *= 0.95  # combat stress
+            self.hurt(0.5)  # minor injury
+            return True        
+        elif self_power < target_power:
+            # Defender wins
+            self.hurt(self.power)
+            self.happiness *= 0.8
+            target.happiness *= 0.95  # stress for both
+            return False        
+        else:
+            # Tie: both take damage
+            self.hurt(self.power * 0.5)
+            target.hurt(self.power * 0.5)
+            self.happiness *= 0.9
+            target.happiness *= 0.9
+            return None
+
 
     # --- Death Check ---
     def is_dead(self, force=False):
         self.alive = not (force or self.health <= 0)
         return not self.alive
+    
     
     def reset(self):
         # Remove agent’s old position if needed
@@ -352,6 +484,8 @@ class Agent:
         # Place back on the grid
         self.grid.cells[self.y][self.x] = AGENT
 
+    # Helper Functions
+    # Set Trainer
     def set_trainer(self, trainer):
         """
         Assign a centralized trainer to the agent.
