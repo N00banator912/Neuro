@@ -6,7 +6,6 @@
 
 
 # Imports
-from audioop import avg
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import tensorflow as tf
@@ -15,8 +14,9 @@ import random
 from tkinter import Grid
 import numpy as np
 
+
 # Project Imports
-from grid import Grid, AGENT, EMPTY
+from grid import Grid
 from agent import Agent
 from training import Trainer
 from stats import StatsTracker
@@ -41,6 +41,10 @@ init_periferal = 3
 learning_rate = 0.1
 hidden_size = 32
 action_size = 9     # 8 directions + stay put
+
+writer = SummaryWriter(log_dir="runs/exp1")
+writer.add_scalar("debug/test_value", 1.0, 0)
+writer.flush()
 
 # Local Time Variables
 epochs = 500

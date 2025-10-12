@@ -328,7 +328,7 @@ class Agent:
                 print(f"💀 Agent {id(self)} died in battle at age {self.age} position({self.x}, {self.y})")
             else:
             # Encourage victorious combat, discourage wasteful fights
-                reward += 0.3 if self.happiness > 1.0 else -0.3
+                reward += 0.5 if self.happiness > 1.0 else -0.2
 
             
 
@@ -484,7 +484,6 @@ class Agent:
         # Place back on the grid
         self.grid.cells[self.y][self.x] = AGENT
 
-    # Helper Functions
     # Set Trainer
     def set_trainer(self, trainer):
         """

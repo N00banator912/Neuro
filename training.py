@@ -7,6 +7,7 @@
 import tensorflow as tf
 from network import ActorCriticNetwork
 
+
 class Trainer:
     def __init__(self, input_size, hidden_size, action_size, lr=0.002, gamma=0.99, entropy_beta=0.01):
         self.network = ActorCriticNetwork(input_size, hidden_size, action_size)
@@ -14,6 +15,7 @@ class Trainer:
         self.gamma = gamma
         self.entropy_beta = entropy_beta
         self.memory = []
+        
 
     def store(self, obs, action, reward, next_obs, alive):
         self.memory.append((obs, action, reward, next_obs, alive))
