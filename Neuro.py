@@ -42,9 +42,9 @@ learning_rate = 0.1
 hidden_size = 32
 action_size = 9     # 8 directions + stay put
 
-writer = SummaryWriter(log_dir="runs/exp1")
-writer.add_scalar("debug/test_value", 1.0, 0)
-writer.flush()
+# writer = SummaryWriter(log_dir="runs/exp1")
+# writer.add_scalar("debug/test_value", 1.0, 0)
+# writer.flush()
 
 # Local Time Variables
 epochs = 500

@@ -15,7 +15,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 # Import shared symbols and grid reference
-from grid import WATER, FOOD, DANGER, EMPTY, AGENT, CORPSE
+from grid import GRAVE, WATER, FOOD, DANGER, EMPTY, AGENT, CORPSE
 
 matplotlib.use("Agg")  # Non-interactive, no GUI required
 
@@ -72,13 +72,17 @@ class Agent:
         self.visited = set()
         self.last_action = None
         self.last_failed = False
+        self.last_event = None
+        self.repeat_event = 0
+        self.steps = 0
         self.tile_under = EMPTY
+        
 
         
         # input_size now guaranteed to match perceive() output
         input_size = self.sight_range * self.cone_width
         hidden_size = 32
-        action_size = 8
+        action_size = 9  # 8 directions + sit
         
         # Brain Stuff
         self.local_memory = []
@@ -148,12 +152,12 @@ class Agent:
         policy = policy / np.sum(policy)
 
         # Decrease probability of repeating last failed action
-        if self.last_failed and self.last_action is not None:
-            policy[self.last_action] *= 0.25  # reduce its weight drastically
-            policy = policy / np.sum(policy)  # renormalize
-        elif self.last_action == 8:  # if last action was 'sit'
-            policy[self.last_action] *= 0.66  # reduce its weight moderately
-            policy = policy / np.sum(policy)  # renormalize
+        # if self.last_failed and self.last_action is not None:
+            # policy[self.last_action] *= 0.25  # reduce its weight drastically
+            # policy = policy / np.sum(policy)  # renormalize
+        #elif self.last_action == 8:  # if last action was 'sit'
+            # policy[self.last_action] *= 0.5  # reduce its weight moderately
+            # policy = policy / np.sum(policy)  # renormalize
 
 
         # Choose action based on probabilities
@@ -164,101 +168,102 @@ class Agent:
     # --- Movement ---
     def move(self, action):
         event = None
-        if self.is_dead():
-            self.grid.mark_corpse(self.x, self.y)
-            return self.compute_reward(event="death")
 
-        self.dir = (self.dir + action) % len(self.DIRECTIONS)
-
-            # Handle movement / sit still
-        if action >= len(self.DIRECTIONS) - 1:  # last action is sit still
-            dx, dy = 0, 0
-            self.happiness *= 0.9  # Slight decrease for being idle
-            event = "idle"
-        else:
-            dx, dy = self.DIRECTIONS[action]
-         
-            
-        nx, ny = self.x + dx, self.y + dy
-
-        # Bounds Checking
-        if 0 <= nx < self.grid.width and 0 <= ny < self.grid.height:
-            cell = self.grid.cells[ny][nx]
-            if cell == FOOD:
-                self.hunger = self.hunger_max
-                self.happiness *= 1.1
-                event = "eat"
-                self.grid.cells[ny][nx] = EMPTY
-                self.times_eaten += 1
-            elif cell == CORPSE:
-                self.hunger = self.hunger_max * .5
-                self.happiness *= .5
-                event = "eat"
-                self.grid.cells[ny][nx] = EMPTY
-                self.times_eaten += 1
-            elif cell == WATER:
-                self.thirst = self.thirst_max
-                self.happiness *= 1.05
-                event = "drink"
-                self.times_drank += 1
-            elif cell == DANGER:
-                self.hurt(3)
-                event = "danger"
-            elif cell == AGENT:
-                # Engage in combat
-                target = self.grid.get_agent_at(nx, ny)  # You'll need to add this helper in Grid (shown below)
-                if target and target.alive:
-                    event = "fight"
-                    self.fight(target)
-                else:
-                    # If no valid target found (shouldn’t happen)
-                    event = "bump"
-                nx, ny = self.x, self.y  # Stay in place after fighting
-
-            # All other cells Impassable
-            elif cell != EMPTY:
-                nx, ny = self.x, self.y
-                self.happiness *= 0.9  # Slight decrease for failed move
-                event = "bump"      
+        try:
+            if action >= len(self.DIRECTIONS) - 1:  # Sit still
+                self.happiness *= 0.95
+                event = "idle"
+                return self.compute_reward(event)
             else:
-                self.happiness *= 1.1  # Slight increase for successful move
-                event = "move"
+                self.dir = (self.dir + action) % len(self.DIRECTIONS)
+                dx, dy = self.DIRECTIONS[action]        
+                nx, ny = self.x + dx, self.y + dy
+                    
 
-            if (nx, ny) not in self.visited:
-                self.visited.add((nx, ny))
-                self.happiness *= 1.5  # Slight increase for exploring
+                # Bounds Checking
+                if not (0 <= nx < self.grid.width and 0 <= ny < self.grid.height):
+                    self.happiness *= 0.95
+                    event = "bump"
+                    self.last_failed = True
+                    return self.compute_reward(event)
 
-            # Move agent
-            self.grid.cells[self.y][self.x] = self.tile_under
-            self.tile_under = self.grid.cells[ny][nx]
-            if self.tile_under == FOOD:
-                self.tile_under = EMPTY  # Food will be eaten when stepped on, so we don't want it to be replaced when moving away
-            self.x, self.y = nx, ny
-            self.grid.cells[self.y][self.x] = AGENT
-        else:   # Out of bounds
-            self.happiness *= 0.99  # Slight decrease for failed move
-            event = "bump"
-            
-        self.last_failed = (event == "bump")
-        self.last_action = action
+                self.tile_under = self.grid.cells[ny][nx]
+                cell = self.grid.cells[ny][nx]
+                if cell == FOOD:
+                    self.hunger = self.hunger_max
+                    self.happiness *= 1.1
+                    event = "eat"
+                    self.grid.cells[ny][nx] = EMPTY
+                    self.times_eaten += 1
+                elif cell == CORPSE:
+                    self.hunger = self.hunger_max * .5
+                    self.happiness *= .5
+                    event = "eat"
+                    self.grid.cells[ny][nx] = GRAVE
+                    self.tile_under = GRAVE
+                    self.times_eaten += 1
+                elif cell == WATER:
+                    if self.tile_under != WATER:  # Only trigger when first stepping into water
+                        self.thirst = self.thirst_max
+                        self.happiness *= 1.05
+                        event = "drink"
+                        self.times_drank += 1
+                    else:
+                        nx, ny = self.x, self.y  # Can't go deeper
+                        event = "idle"
+                        self.happiness *= 0.95  # Slight boredom penalty
+                        return self.compute_reward(event)
+                elif cell == DANGER:
+                    self.hurt(3)
+                    event = "danger"
+                elif cell == AGENT:
+                    # Engage in combat
+                    target = self.grid.get_agent_at(nx, ny)  # You'll need to add this helper in Grid (shown below)
+                    if target and target.alive:
+                        event = "fight"
+                        self.fight(target)
+                    else:
+                        # If no valid target found (shouldn’t happen)
+                        event = "bump"
+                    nx, ny = self.x, self.y  # Stay in place after fighting
 
-            
-        # Tick down hunger, thirst, etc.
-        self.biostasis()
+                    # All other cells Impassable
+                elif cell != EMPTY:
+                    nx, ny = self.x, self.y
+                    self.happiness *= 0.9  # Slight decrease for failed move
+                    event = "bump"      
         
-        #if event in ["eat"]:
-        #    print(f"Agent {id(self)} ate(x={self.x}, y={self.y}), Hunger: {self.hunger}, Happiness: {self.happiness:.2f}")
-        #elif event in ["drink"]:
-        #    print(f"Agent {id(self)} drank(x={self.x}, y={self.y}), Thirst: {self.thirst}, Happiness: {self.happiness:.2f}")
+                # If you made it through all that, it's an empty square        
+                else:
+                    self.happiness *= 1.1  # Slight increase for successful move
+                    event = "move"
+
+                    if (nx, ny) not in self.visited:
+                        self.visited.add((nx, ny))
+                        self.happiness *= 1.5  # Slight increase for exploring
+
+                    # Move agent
+                    self.grid.cells[self.y][self.x] = self.tile_under
+                    self.x, self.y = nx, ny
+                    self.grid.cells[self.y][self.x] = AGENT
+            
+                self.last_failed = (event == "bump")
+                self.last_action = action
+                
+                #if event in ["eat"]:
+                #    print(f"Agent {id(self)} ate(x={self.x}, y={self.y}), Hunger: {self.hunger}, Happiness: {self.happiness:.2f}")
+                #elif event in ["drink"]:
+                #    print(f"Agent {id(self)} drank(x={self.x}, y={self.y}), Thirst: {self.thirst}, Happiness: {self.happiness:.2f}")
             
 
-        if self.is_dead():
-            self.grid.mark_corpse(self.x, self.y)
-            event = "death"
-            print(f"💀 Agent {id(self)} died at age {self.age} position({self.x}, {self.y})")
+                if self.is_dead():
+                    self.grid.mark_corpse(self.x, self.y)
+                    event = "death"
+                    print(f"💀 Agent {id(self)} died at age {self.age} position({self.x}, {self.y})")
 
-        return self.compute_reward(event)
-    
+                return self.compute_reward(event)
+        finally:
+            self.biostasis()
     # --- Act ---
     def act(self, shared_network):
         obs = self.perceive()
@@ -305,7 +310,13 @@ class Agent:
         event: optional string to emphasize specific event triggers like 'eat', 'drink', or 'death'.
         """
         # Base survival reward — just staying alive
-        reward = 0.01
+        reward = 0.1
+
+        if event == self.last_event:
+            self.repeat_events += 1
+            reward -= 0.01 * self.repeat_events  # Small penalty for repeating same event
+        else:
+            self.repeat_events = 0
 
         # Strong event-based signals
         if event == "eat":
@@ -330,8 +341,6 @@ class Agent:
             # Encourage victorious combat, discourage wasteful fights
                 reward += 0.5 if self.happiness > 1.0 else -0.2
 
-            
-
         # Penalize low hunger/thirst gradually
         hunger_penalty = max(0, 1 - (self.hunger / max(1, self.hunger_max)))
         thirst_penalty = max(0, 1 - (self.thirst / max(1, self.thirst_max)))
@@ -344,14 +353,16 @@ class Agent:
         # Decrease if in Pain
         if self.health < self.health_max * self.pain_threshold:
             reward *= 0.75
-            
+              
         # Multiply by happiness factor
         self.happiness = np.clip(self.happiness, 0.5, 1.5)
         reward *= self.happiness
 
         # Keep reward within sane range
-        # print (f"Agent {id(self)} Reward (pre-clip): {reward}")
         reward = np.clip(reward, -1.0, 1.0)
+        
+        # Set Last Event
+        self.last_event = event
         # print (f"Agent {id(self)}, Action: {event}, Reward: {reward:.1f}, Happiness: {self.happiness:.3f}")
         return reward
 
@@ -407,6 +418,7 @@ class Agent:
             self.health = self.health_max
         return self.health
 
+    # --- Combat Function ---
     def fight(self, target):
         """
         Simple combat resolution between two agents.
@@ -454,12 +466,15 @@ class Agent:
             return None
 
 
+    
+    
     # --- Death Check ---
     def is_dead(self, force=False):
         self.alive = not (force or self.health <= 0)
         return not self.alive
     
     
+    # --- Reset Agent ---
     def reset(self):
         # Remove agent’s old position if needed
         if self.grid.cells[self.y][self.x] == AGENT:
@@ -484,7 +499,9 @@ class Agent:
         # Place back on the grid
         self.grid.cells[self.y][self.x] = AGENT
 
-    # Set Trainer
+    
+    
+    # --- Set Trainer ---
     def set_trainer(self, trainer):
         """
         Assign a centralized trainer to the agent.
