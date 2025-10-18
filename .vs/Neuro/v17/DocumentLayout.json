@@ -1,0 +1,117 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "X:\\Programming Shit\\Neuro\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\agent.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:agent.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\Neuro.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:Neuro.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\training.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:training.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\network.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:network.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\logger.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:logger.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\grid.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:grid.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Neuro.py",
+              "DocumentMoniker": "X:\\Programming Shit\\Neuro\\Neuro.py",
+              "RelativeDocumentMoniker": "Neuro.py",
+              "ToolTip": "X:\\Programming Shit\\Neuro\\Neuro.py",
+              "RelativeToolTip": "Neuro.py",
+              "ViewState": "AgIAABUAAAAAAAAAAAAhwCoAAAAcAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-03T23:22:59.547Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "agent.py",
+              "DocumentMoniker": "X:\\Programming Shit\\Neuro\\agent.py",
+              "RelativeDocumentMoniker": "agent.py",
+              "ToolTip": "X:\\Programming Shit\\Neuro\\agent.py",
+              "RelativeToolTip": "agent.py",
+              "ViewState": "AgIAAJYBAAAAAAAAAAAgwO0BAAAUAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-06T22:09:12.599Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "logger.py",
+              "DocumentMoniker": "X:\\Programming Shit\\Neuro\\logger.py",
+              "RelativeDocumentMoniker": "logger.py",
+              "ToolTip": "X:\\Programming Shit\\Neuro\\logger.py",
+              "RelativeToolTip": "logger.py",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-11T23:51:14.413Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "grid.py",
+              "DocumentMoniker": "X:\\Programming Shit\\Neuro\\grid.py",
+              "RelativeDocumentMoniker": "grid.py",
+              "ToolTip": "X:\\Programming Shit\\Neuro\\grid.py",
+              "RelativeToolTip": "grid.py",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAMAAAAWAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-03T23:15:35.65Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "training.py",
+              "DocumentMoniker": "X:\\Programming Shit\\Neuro\\training.py",
+              "RelativeDocumentMoniker": "training.py",
+              "ToolTip": "X:\\Programming Shit\\Neuro\\training.py",
+              "RelativeToolTip": "training.py",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAgAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-11T23:51:15.686Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "network.py",
+              "DocumentMoniker": "X:\\Programming Shit\\Neuro\\network.py",
+              "RelativeDocumentMoniker": "network.py",
+              "ToolTip": "X:\\Programming Shit\\Neuro\\network.py",
+              "RelativeToolTip": "network.py",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAABEAAAAbAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-12T19:14:06.275Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

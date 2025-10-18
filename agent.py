@@ -1,7 +1,7 @@
 ﻿# Agent Class, a.k.a. "Lil' Guys"
 # Author:   K. E. Brown, Chad GPT.
 # First:    2025-10-03
-# Updated:  2025-10-11
+# Updated:  2025-10-14
 
 # Imports
 import os
@@ -113,27 +113,27 @@ class Agent:
             
                 
                 if cell == DANGER:
-                    ray_values.append(-999)
+                    ray_values.append(-1.0)
                     break
                 elif cell == CORPSE:
-                    ray_values.append(-20)
+                    ray_values.append(-0.2)
                 elif cell == WATER:
-                    ray_values.append(1)
+                    ray_values.append(0.5)
                 elif cell == FOOD:
-                    ray_values.append(20)
+                    ray_values.append(1.0)
                 elif cell == AGENT:
-                    ray_values.append(-1)
+                    ray_values.append(0.01)
                 else:
                     ray_values.append(0)
 
             # pad ray to sight_range length
             while len(ray_values) < self.sight_range:
-                ray_values.append(-5)
+                ray_values.append(-0.25)
 
             perception.extend(ray_values)
             
         while len(perception) < self.sight_range * self.cone_width:
-            perception.append(-5)
+            perception.append(-0.25)
 
 
         # Normalize for neural net input
@@ -152,12 +152,12 @@ class Agent:
         policy = policy / np.sum(policy)
 
         # Decrease probability of repeating last failed action
-        # if self.last_failed and self.last_action is not None:
-            # policy[self.last_action] *= 0.25  # reduce its weight drastically
-            # policy = policy / np.sum(policy)  # renormalize
+        #if self.last_failed and self.last_action is not None:
+        #    policy[self.last_action] *= 0.25  # reduce its weight drastically
+        #    policy = policy / np.sum(policy)  # renormalize
         #elif self.last_action == 8:  # if last action was 'sit'
-            # policy[self.last_action] *= 0.5  # reduce its weight moderately
-            # policy = policy / np.sum(policy)  # renormalize
+        #    policy[self.last_action] *= 0.5  # reduce its weight moderately
+        #    policy = policy / np.sum(policy)  # renormalize
 
 
         # Choose action based on probabilities
@@ -491,6 +491,7 @@ class Agent:
         self.steps_in_pain = 0
         self.was_in_pain = False
         self.death_step = None
+        self.age = 0
 
         # Reset memory and temporary learning buffers
         self.local_memory.clear()
