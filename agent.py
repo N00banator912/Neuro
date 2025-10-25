@@ -1,7 +1,7 @@
 ﻿# Agent Class, a.k.a. "Lil' Guys"
 # Author:   K. E. Brown, Chad GPT.
 # First:    2025-10-03
-# Updated:  2025-10-14
+# Updated:  2025-10-25
 
 # Imports
 import os
@@ -33,7 +33,7 @@ class Agent:
         (0, 0)     # Sit
     ]
 
-    def __init__(self, x, y, grid, sight_range=3, cone_width=3, learning_rate=.002, base_hunger=15, base_thirst=45):
+    def __init__(self, x, y, grid, sight_range=3, cone_width=3, learning_rate=.002, base_hunger=15, base_thirst=45, name="Jeff"):
         self.x = x
         self.y = y
         self.dir = random.randint(0, 7)  # Random initial direction
@@ -42,6 +42,7 @@ class Agent:
         self.grid = grid
         self.alive = True
         self.symbol = AGENT
+        self.name = name
 
         # Health Attributes
         self.happiness = 1.0
@@ -86,6 +87,10 @@ class Agent:
         
         # Brain Stuff
         self.local_memory = []
+
+        # Log Birth Message
+        print(f"🧠 '{self.name}' was born at ({self.x}, {self.y})")
+ 
         
     # --- Perception ---
     def perceive(self):
@@ -140,28 +145,56 @@ class Agent:
         return np.array(perception, dtype=np.float32)
     
     # --- Decision Making ---
-    def decide(self, obs):
-        # Get policy and value from the network
-        policy, value = self.trainer.network(obs)
+    def decide(self, obs, debug=False):
+        """
+        Decide on an action based on the observation vector.
+        Produces a policy distribution and samples one action.
+        Optionally prints a debug summary of perception -> action mapping.
+        """
 
+        # --- Network inference ---
+        policy, value = self.trainer.network(obs, training=False)
 
-        # Convert to numpy and flatten
-        policy = policy.numpy()[0]
+        policy = tf.nn.softmax(policy[0]).numpy()  # Proper softmax normalization
+        value = float(value[0].numpy())            # Scalar value
 
-        # Normalize just in case of rounding errors
-        policy = policy / np.sum(policy)
+        # --- Normalize probabilities ---
+        total = np.sum(policy)
+        if total == 0 or np.isnan(total):
+            policy = np.ones_like(policy) / len(policy)
+        else:
+            policy /= total
 
-        # Decrease probability of repeating last failed action
-        #if self.last_failed and self.last_action is not None:
-        #    policy[self.last_action] *= 0.25  # reduce its weight drastically
-        #    policy = policy / np.sum(policy)  # renormalize
-        #elif self.last_action == 8:  # if last action was 'sit'
-        #    policy[self.last_action] *= 0.5  # reduce its weight moderately
-        #    policy = policy / np.sum(policy)  # renormalize
+        # --- Penalize undesirable repeats ---
+        if self.last_failed and self.last_action is not None:
+            policy[self.last_action] *= 0.25
+            policy = policy / np.sum(policy)
+        elif self.last_action == len(self.DIRECTIONS):  # action 8 = sit
+            policy[self.last_action] *= 0.5
+            policy = policy / np.sum(policy)
 
-
-        # Choose action based on probabilities
+        # --- Sample action ---
         action = np.random.choice(len(policy), p=policy)
+
+        # --- Optional Debugging ---
+        if debug:
+            action_names = ["N", "NE", "E", "SE", "S", "SW", "W", "NW", "SIT"]
+            chosen = action_names[action]
+
+            # interpret obs roughly if you know what obs encodes
+            obs_str = np.array2string(obs.numpy(), precision=2, separator=", ")
+
+            print(f"\n🤖 Agent {self.name} Decision Step")
+            print(f"Observation: {obs_str}")
+            print(f"Policy: {[round(p, 3) for p in policy]}")
+            print(f"→ Chose action: {chosen} (index {action}) | Value Estimate: {value:.3f}")
+
+            if self.last_failed:
+                print(f"⚠️ Last action {action_names[self.last_action]} failed — penalized.")
+
+        # --- Store state ---
+        self.last_action = action
+        self.last_failed = False  # will be set true if action fails elsewhere
 
         return action, value
 
@@ -170,8 +203,11 @@ class Agent:
         event = None
 
         try:
-            if action >= len(self.DIRECTIONS) - 1:  # Sit still
-                self.happiness *= 0.95
+            if action >= len(self.DIRECTIONS):  # Sit still
+                self.sit_counter = getattr(self, "sit_counter", 0) + 1
+                if self.sit_counter > 3:
+                    self.boredom = 0.05 * self.sit_counter
+                self.happiness *= 1.0 - getattr(self, "bordom", 0)
                 event = "idle"
                 return self.compute_reward(event)
             else:
@@ -251,15 +287,15 @@ class Agent:
                 self.last_action = action
                 
                 #if event in ["eat"]:
-                #    print(f"Agent {id(self)} ate(x={self.x}, y={self.y}), Hunger: {self.hunger}, Happiness: {self.happiness:.2f}")
+                #    print(f"Agent {self.name} ate(x={self.x}, y={self.y}), Hunger: {self.hunger}, Happiness: {self.happiness:.2f}")
                 #elif event in ["drink"]:
-                #    print(f"Agent {id(self)} drank(x={self.x}, y={self.y}), Thirst: {self.thirst}, Happiness: {self.happiness:.2f}")
+                #    print(f"Agent {self.name} drank(x={self.x}, y={self.y}), Thirst: {self.thirst}, Happiness: {self.happiness:.2f}")
             
 
                 if self.is_dead():
                     self.grid.mark_corpse(self.x, self.y)
                     event = "death"
-                    print(f"💀 Agent {id(self)} died at age {self.age} position({self.x}, {self.y})")
+                    print(f"💀 Agent {self.name} died at age {self.age} position({self.x}, {self.y})")
 
                 return self.compute_reward(event)
         finally:
@@ -336,7 +372,7 @@ class Agent:
         elif event == "fight":
             if self.is_dead():
                 reward -= 1.0
-                print(f"💀 Agent {id(self)} died in battle at age {self.age} position({self.x}, {self.y})")
+                print(f"💀 Agent {self.name} died in battle at age {self.age} position({self.x}, {self.y})")
             else:
             # Encourage victorious combat, discourage wasteful fights
                 reward += 0.5 if self.happiness > 1.0 else -0.2
@@ -356,14 +392,18 @@ class Agent:
               
         # Multiply by happiness factor
         self.happiness = np.clip(self.happiness, 0.5, 1.5)
-        reward *= self.happiness
+        
+        if reward > 0:
+            reward *= self.happiness
+        else:
+            reward /= self.happiness
 
         # Keep reward within sane range
         reward = np.clip(reward, -1.0, 1.0)
         
         # Set Last Event
         self.last_event = event
-        # print (f"Agent {id(self)}, Action: {event}, Reward: {reward:.1f}, Happiness: {self.happiness:.3f}")
+        # print (f"Agent {self.name}, Action: {event}, Reward: {reward:.1f}, Happiness: {self.happiness:.3f}")
         return reward
 
     # --- Policy Visualization ---
@@ -500,11 +540,17 @@ class Agent:
         # Place back on the grid
         self.grid.cells[self.y][self.x] = AGENT
 
-    
-    
+    # --- Misc Setters ---    
     # --- Set Trainer ---
     def set_trainer(self, trainer):
         """
         Assign a centralized trainer to the agent.
         """
         self.trainer = trainer
+
+    # --- Set Name ---
+    def set_name(self, name):
+        """
+        Assign a string as Name
+        """
+        self.name = name
