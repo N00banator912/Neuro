@@ -42,20 +42,23 @@ learning_rate = 0.1
 hidden_size = 32
 action_size = 9     # 8 directions + stay put
 
-writer = SummaryWriter(log_dir="runs/exp1")
-writer.add_scalar("debug/test_value", 1.0, 0)
-writer.flush()
+# writer = SummaryWriter(log_dir="runs/exp1")
+# writer.add_scalar("debug/test_value", 1.0, 0)
+# writer.flush()
 
 # Local Time Variables
-epochs = 500
+epochs = 1000
 sim_lifetime = 500
 learn_timer = 2
-prnt_timer = 2
+prnt_timer = 3
 network_print_timer = 5
 
 # Food Spawning Variables
 food_timer = 10
 food_count = 5
+
+# Names Path
+names_path = "SillyNames.txt"
 
 def main():
     # Loop Tracking
@@ -75,9 +78,26 @@ def main():
     # Create the Trainer
     trainer = Trainer(input_size=init_perception * init_periferal, hidden_size=hidden_size, action_size=action_size, lr=learning_rate)
 
+    # Open Name File
+    with open("SillyNames.txt", "r", encoding="utf-8") as f:
+        ALL_NAMES = [line.strip() for line in f if line.strip()]
+    
+    USED_NAMES = set()
+
+    # Pull a name from the 
+    def get_random_name():
+        available = [n for n in ALL_NAMES if n not in USED_NAMES]
+        if not available:
+            # fallback if we run out
+            name = f"Jeff {random.randint(1, 12538242069)}"
+        else:
+            name = random.choice(available)
+            USED_NAMES.add(name)
+        return name
+
     # Initialize Agents
     for _ in range(init_population):
-        a = Agent(0, 0, grid, init_perception, init_periferal, learning_rate, init_hunger, init_thirst)
+        a = Agent(0, 0, grid, init_perception, init_periferal, learning_rate, init_hunger, init_thirst, get_random_name())
         a.set_trainer(trainer)
         agents.append(a)       
 
@@ -121,8 +141,12 @@ def main():
                 obs = agent.perceive()
                 agent.last_obs = obs
                 obs_tensor = tf.convert_to_tensor([obs], dtype=tf.float32)
-
-                # Get action + predicted value (for potential advantage estimation)
+                
+                # Get action + predicted observation (for potential advantage estimation)
+                # Print the first and last decide calls
+                # if agent == agents[0] or agent == agents[-1]:
+                #    action, value = agent.decide(obs_tensor, debug=True)
+                #else:
                 action, value = agent.decide(obs_tensor)
                 agent.last_action = action
                 
