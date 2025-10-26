@@ -21,7 +21,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="food.py" />
     <Compile Include="grid.py" />
+    <Compile Include="hazard.py" />
     <Compile Include="logger.py" />
     <Compile Include="network.py" />
     <Compile Include="Neuro.py" />

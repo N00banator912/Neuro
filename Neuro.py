@@ -2,7 +2,7 @@
 # Version:  v 0.2.1
 # Author:   K. E. Brown, Chad GPT.
 # First:    2025-10-03
-# Updated:  2025-10-11
+# Updated:  2025-10-26
 
 
 # Imports
@@ -32,10 +32,8 @@ init_population = 20
 agents = []
 
 # Agent Initial Attribute Distribution
-init_hunger = 30
-init_thirst = 80
-init_perception = 5
-init_periferal = 3
+init_hunger = 25
+init_thirst = 50
 
 # Network/Trainer Script
 learning_rate = 0.1

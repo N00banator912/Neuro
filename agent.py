@@ -1,9 +1,10 @@
 ﻿# Agent Class, a.k.a. "Lil' Guys"
 # Author:   K. E. Brown, Chad GPT.
 # First:    2025-10-03
-# Updated:  2025-10-25
+# Updated:  2025-10-26
 
 # Imports
+from math import floor
 import os
 from keras import activations
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -14,8 +15,9 @@ import random
 import matplotlib
 import matplotlib.pyplot as plt
 
-# Import shared symbols and grid reference
+# Local Imports
 from grid import GRAVE, WATER, FOOD, DANGER, EMPTY, AGENT, CORPSE
+from food import FLAVOR
 
 matplotlib.use("Agg")  # Non-interactive, no GUI required
 
@@ -33,7 +35,7 @@ class Agent:
         (0, 0)     # Sit
     ]
 
-    def __init__(self, x, y, grid, sight_range=3, cone_width=3, learning_rate=.002, base_hunger=15, base_thirst=45, name="Jeff"):
+    def __init__(self, x, y, grid, sight_range=3, cone_width=3, learning_rate=.002, base_hunger=15, base_thirst=45, name="Jeff", flavor=FLAVOR[0]):
         self.x = x
         self.y = y
         self.dir = random.randint(0, 7)  # Random initial direction
@@ -44,20 +46,40 @@ class Agent:
         self.symbol = AGENT
         self.name = name
 
-        # Health Attributes
+        # Status Attributes
         self.happiness = 1.0
-        self.health_max = 10
-        self.damage_threshold = 1
-        self.pain_threshold = .65
+
         self.hunger_max = base_hunger
-        self.hunger_loss = 1
+        self.hunger_loss = (floor(self.ATK/10) + floor(self.DEF/10) + floor(self.MHP/5)) / 3
         self.thirst_max = base_thirst
-        self.thirst_loss = 1
+        self.thirst_loss = (floor(self.MAG/10) + floor(self.RES/10) + floor(self.MSP/5) + self.SPD) / 4
         self.hunger = self.hunger_max
         self.thirst = self.thirst_max
         self.health = self.health_max
-        self.power = 1
+        
+        # Flavor and Preferences
+        self.flavor = flavor
+        self.fPrefs = {
+            for f in range len(FLAVOR):
+                random.range(0.0, 1.0) * compatilbility(self.flavor, FLAVOR[f])
+            }
+
+        # Rare Allergy
+        if (random.randint(1, 1000) == 1000):
+            self.fPres[random.randint(0, 6)] *= -1
+        
+        # Stats
+        self.ATK = 10
+        self.DEF = 10
+        self.MHP = 50
+        self.MAG = 10
+        self.RES = 10
+        self.MSP = 50
+        self.SPD = 2
+
+        # Age
         self.age = 0
+        self.level = 1
         
         # Achievement Attributes
         self.times_eaten = 0
@@ -77,9 +99,7 @@ class Agent:
         self.repeat_event = 0
         self.steps = 0
         self.tile_under = EMPTY
-        
 
-        
         # input_size now guaranteed to match perceive() output
         input_size = self.sight_range * self.cone_width
         hidden_size = 32
@@ -98,51 +118,31 @@ class Agent:
         Raymarch outward from the agent within the cone of vision.
         Returns a 1D array of numeric perception values.
         """
-        perception = []
+        pDirections = [(0, -1),   # N
+            (1, -1),   # NE
+            (1, 0),    # E
+            (1, 1),    # SE
+            (0, 1),    # S
+            (-1, 1),   # SW
+            (-1, 0),   # W
+            (-1, -1),  # NW
+            ]
+        pCount = len(pDirections)
 
-        # Determine which directions fall in the cone
-        half_cone = self.cone_width // 2
-        directions = [(self.dir + i) % 8 for i in range(-half_cone, half_cone + 1)]
+        pDepth = 11   # Type + Quality + Flavor Count (including Bland)
 
-        for d in directions:
-            dx, dy = self.DIRECTIONS[d]
-            ray_values = []
-            for r in range(1, self.sight_range + 1):
-                tx = self.x + dx * r
-                ty = self.y + dy * r
-                # Check bounds
-                if tx < 0 or ty < 0 or ty >= len(self.grid.cells) or tx >= len(self.grid.cells[0]):
-                    break  # outside grid
+        external = np.zeros((pCount, pDepth), dtype=np.float32)
 
-                cell = self.grid.cells[ty][tx]
-            
-                
-                if cell == DANGER:
-                    ray_values.append(-1.0)
-                    break
-                elif cell == CORPSE:
-                    ray_values.append(-0.2)
-                elif cell == WATER:
-                    ray_values.append(0.5)
-                elif cell == FOOD:
-                    ray_values.append(1.0)
-                elif cell == AGENT:
-                    ray_values.append(0.01)
-                else:
-                    ray_values.append(0)
-
-            # pad ray to sight_range length
-            while len(ray_values) < self.sight_range:
-                ray_values.append(-0.25)
-
-            perception.extend(ray_values)
-            
-        while len(perception) < self.sight_range * self.cone_width:
-            perception.append(-0.25)
+        for d in range(pCount):
 
 
-        # Normalize for neural net input
-        return np.array(perception, dtype=np.float32)
+        internal = np.array([self.health / self.health_max,
+                             ], dtype=np.float32)
+
+
+        # Combine, Normalize, and Return Observation
+        obs = np.concatenate([external.flatten(), internal])
+        return obs
     
     # --- Decision Making ---
     def decide(self, obs, debug=False):
@@ -202,14 +202,18 @@ class Agent:
     def move(self, action):
         event = None
 
+        # Whole move phase is within a Try-Finally block so that Biostasis always runs and always runs once.
         try:
+            # No movement = idle
             if action >= len(self.DIRECTIONS):  # Sit still
                 self.sit_counter = getattr(self, "sit_counter", 0) + 1
                 if self.sit_counter > 3:
-                    self.boredom = 0.05 * self.sit_counter
+                    self.boredom = 0.15 * self.sit_counter
                 self.happiness *= 1.0 - getattr(self, "bordom", 0)
                 event = "idle"
                 return self.compute_reward(event)
+
+            # If we're not idle
             else:
                 self.dir = (self.dir + action) % len(self.DIRECTIONS)
                 dx, dy = self.DIRECTIONS[action]        
@@ -217,56 +221,87 @@ class Agent:
                     
 
                 # Bounds Checking
+                # Bump if Target OOB
                 if not (0 <= nx < self.grid.width and 0 <= ny < self.grid.height):
+                    self.sit_counter = getattr(self, "sit_counter", 0) + 1
                     self.happiness *= 0.95
+                    
                     event = "bump"
                     self.last_failed = True
                     return self.compute_reward(event)
 
+                # We have now confirmed a move will occur
                 self.tile_under = self.grid.cells[ny][nx]
                 cell = self.grid.cells[ny][nx]
+
+                # Pick an action based on target
+                # Eat a Food
                 if cell == FOOD:
                     self.hunger = self.hunger_max
                     self.happiness *= 1.1
+                    self.sit_counter = 0
+
                     event = "eat"
                     self.grid.cells[ny][nx] = EMPTY
                     self.times_eaten += 1
+
+                # Eat a Corpse
                 elif cell == CORPSE:
                     self.hunger = self.hunger_max * .5
                     self.happiness *= .5
+                    self.sit_counter = 0
+
                     event = "eat"
                     self.grid.cells[ny][nx] = GRAVE
                     self.tile_under = GRAVE
                     self.times_eaten += 1
+
+                # Drink Water
                 elif cell == WATER:
+                    # The Agent enters the water and drinks
                     if self.tile_under != WATER:  # Only trigger when first stepping into water
                         self.thirst = self.thirst_max
                         self.happiness *= 1.05
+                        self.sit_counter = 0
                         event = "drink"
                         self.times_drank += 1
+
+                    # The Agent is already in water, stop
                     else:
                         nx, ny = self.x, self.y  # Can't go deeper
+                        self.sit_counter = getattr(self, "sit_counter", 0) + 1
                         event = "idle"
                         self.happiness *= 0.95  # Slight boredom penalty
                         return self.compute_reward(event)
+
+                # Walk into Danger
                 elif cell == DANGER:
                     self.hurt(3)
+                    self. sit_counter = 0
                     event = "danger"
+
+                # Agent Collision
                 elif cell == AGENT:
                     # Engage in combat
                     target = self.grid.get_agent_at(nx, ny)  # You'll need to add this helper in Grid (shown below)
+
+                    # If the target is valid
                     if target and target.alive:
+                        # Reproduction Logic is going in here shortly
                         event = "fight"
                         self.fight(target)
                     else:
                         # If no valid target found (shouldn’t happen)
                         event = "bump"
                     nx, ny = self.x, self.y  # Stay in place after fighting
+                    self.sit_counter = getattr(self, "sit_counter", 0) + 1
 
-                    # All other cells Impassable
+                # Any other object is impassible and uninteractible
                 elif cell != EMPTY:
                     nx, ny = self.x, self.y
+                    self.sit_counter = getattr(self, "sit_counter", 0) + 1
                     self.happiness *= 0.9  # Slight decrease for failed move
+
                     event = "bump"      
         
                 # If you made it through all that, it's an empty square        
@@ -323,6 +358,11 @@ class Agent:
             self.hurt(1)
         elif self.thirst >= self.thirst_max and self.health < self.health_max:
             self.hurt(-1)
+
+        if self.fatigue >= 0.8:
+            self.hurt(5)
+        elif self.fatigue >= 0.5:
+            self.hurt(3)
             
         if self.happiness <= .6:
             self.hurt(1)
@@ -449,7 +489,11 @@ class Agent:
         
     # --- Hurt Function ---
     def hurt(self, damage):
-        self.health -= damage
+        # Check if damage is above damage threshold (ignore DT for healing, i.e. -damage)
+        if (damage > 0 and damage > self.damage_threshold) or (damage < 0):
+            self.health -= damage
+
+        # Bounds Checking
         if self.health < 0:
             self.health = 0
             self.is_dead(force=True)
@@ -524,7 +568,9 @@ class Agent:
         self.hunger = self.hunger_max
         self.thirst = self.thirst_max
         self.health = self.health_max
+        self.fatigue = 0.0
         self.happiness = 1.0
+        self.sit_counter = 0
         self.alive = True
         self.times_eaten = 0
         self.times_drank = 0
@@ -533,6 +579,7 @@ class Agent:
         self.death_step = None
         self.age = 0
 
+
         # Reset memory and temporary learning buffers
         self.local_memory.clear()
         self.visited.clear()
@@ -540,7 +587,7 @@ class Agent:
         # Place back on the grid
         self.grid.cells[self.y][self.x] = AGENT
 
-    # --- Misc Setters ---    
+    # --- Misc Setters and Getters ---    
     # --- Set Trainer ---
     def set_trainer(self, trainer):
         """
@@ -554,3 +601,51 @@ class Agent:
         Assign a string as Name
         """
         self.name = name
+
+    # --- Get Stats ---
+    def get_Stats(self):
+        return [self.MHP, self.ATK, self.DEF, self.MSP, self.MAG, self.RES, self.SPD]
+
+    # --- Locally Normalized ---
+    def get_lStats(self):
+        return [self.MHP/5, self.ATK, self.DEF, self.MSP/3, self.MAG, self.RES, self.SPD*5]
+
+    # --- Combat Normalized ---
+    def get_cStats(self):
+        cStats = [self.MHP/500.00, self.ATK/99.00, self.DEF/99.00, self.MSP/250.00, self.MAG/99.00, self.RES/99.00, self.SPD / 15]
+        return np.normalize(cStats)
+
+    # -- Get Physical Stats ---
+    # return MHP, ATK, and DEF values
+    def get_Phys(stats):
+        return stats[0, 1, 2]
+
+    # --- Get Mental Stats ---
+    # return MSP, MAG, and RES values
+    def get_Ment(stats):
+        return stats[3, 4, 5]
+
+    # --- Get Stamina Stats ---    
+    # return MHP, MSP, and SPD values
+    def get_Stmn(stats):
+        return stats[0, 3, 6]
+
+    # --- Get Offensive Stats ---
+    # return ATK, MAG, SPD
+    def get_Offn(stats):
+        return stats[1, 4, 6]
+
+    # --- Get Defensive Stats ---
+    # return MHP, DEF, MSP, RES
+    def get_Defn(stats):
+        return stats[0, 2, 3, 5]
+
+    # --- Get Max Stat ---
+    def get_xStat(self):
+        return max(self.get_stats())
+
+    # --- Get Max Offensive ---
+    # *Combat Normalized for convenience
+    def get_xOffn(self):
+        offn = get_Offn(self.get_cStats())
+        return max(offn)
