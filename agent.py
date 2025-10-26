@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 # Local Imports
 from grid import GRAVE, WATER, FOOD, DANGER, EMPTY, AGENT, CORPSE
-from food import FLAVOR
+from food import FLAVOR, compatibility
 
 matplotlib.use("Agg")  # Non-interactive, no GUI required
 
@@ -35,46 +35,49 @@ class Agent:
         (0, 0)     # Sit
     ]
 
-    def __init__(self, x, y, grid, sight_range=3, cone_width=3, learning_rate=.002, base_hunger=15, base_thirst=45, name="Jeff", flavor=FLAVOR[0]):
+    def __init__(self, x, y, grid, perception=(2, 7), learning_rate=.002, base_hunger=15, base_thirst=45, name="Jeff", flavor=FLAVOR[0]):
         self.x = x
         self.y = y
         self.dir = random.randint(0, 7)  # Random initial direction
-        self.sight_range = sight_range
-        self.cone_width = max(1, min(8, cone_width))
         self.grid = grid
         self.alive = True
         self.symbol = AGENT
         self.name = name
+                
+        self.perception = perception
 
         # Status Attributes
         self.happiness = 1.0
+        self.fatigue = 0.0
 
         self.hunger_max = base_hunger
+        self.hunger = self.hunger_max
         self.hunger_loss = (floor(self.ATK/10) + floor(self.DEF/10) + floor(self.MHP/5)) / 3
         self.thirst_max = base_thirst
-        self.thirst_loss = (floor(self.MAG/10) + floor(self.RES/10) + floor(self.MSP/5) + self.SPD) / 4
-        self.hunger = self.hunger_max
         self.thirst = self.thirst_max
-        self.health = self.health_max
-        
+        self.thirst_loss = (floor(self.MAG/10) + floor(self.RES/10) + floor(self.MSP/5) + self.SPD) / 5
+                
         # Flavor and Preferences
         self.flavor = flavor
         self.fPrefs = {
-            for f in range len(FLAVOR):
-                random.range(0.0, 1.0) * compatilbility(self.flavor, FLAVOR[f])
-            }
+            f: random.uniform(0.0, 1.0) * compatibility(self.flavor, f)
+                for f in FLAVOR
+        }
 
         # Rare Allergy
         if (random.randint(1, 1000) == 1000):
-            self.fPres[random.randint(0, 6)] *= -1
+            allergic = random.choice(FLAVOR[:-1])
+            self.fPrefs[allergic] *= -1
         
         # Stats
         self.ATK = 10
         self.DEF = 10
         self.MHP = 50
+        self.cHP = self.MHP
         self.MAG = 10
         self.RES = 10
         self.MSP = 50
+        self.cSP = self.MSP
         self.SPD = 2
 
         # Age
@@ -88,7 +91,11 @@ class Agent:
         self.was_in_pain = False
         self.happiness_max = 1.0        # Maximum Happiness ever recorded
         self.happiness_min = 1.0        # Minimum Happiness ever recorded
+        self.fatigue_max = 0.0          # Highest Fatigue ever recorded
         self.happiness_total = 0.0      # Total Lifetime Happiness
+        self.fatigue_total = 0.0        # Total Lifetime Fatigue
+        self.average_fatigue = 0.0      # Average Fatigue
+
         self.death_step = None          # Deathdate
         
         # Movement Attributes
@@ -99,6 +106,7 @@ class Agent:
         self.repeat_event = 0
         self.steps = 0
         self.tile_under = EMPTY
+        self.times_bored = 0
 
         # input_size now guaranteed to match perceive() output
         input_size = self.sight_range * self.cone_width
@@ -109,7 +117,7 @@ class Agent:
         self.local_memory = []
 
         # Log Birth Message
-        print(f"🧠 '{self.name}' was born at ({self.x}, {self.y})")
+        print(f"🧠 '{self.name}' was born at ({self.x}, {self.y}) Flavor: {self.flavor}")
  
         
     # --- Perception ---
@@ -134,10 +142,21 @@ class Agent:
         external = np.zeros((pCount, pDepth), dtype=np.float32)
 
         for d in range(pCount):
+            external[d] = np.zeros(pDepth)
 
-
-        internal = np.array([self.health / self.health_max,
-                             ], dtype=np.float32)
+        internal = np.array([self.cHP / self.MHP, 
+                             self.cSP / self.MSP,
+                             self.thirst / self.thirst_max,
+                             self.hunger / self.hunger_max,
+                             self.happiness / self.happiness_max,
+                             -1.0 if self.cHP <= self.MHP * self.pain_threshold else 0.0,
+                             self.fatigue / self.average_fatigue,
+                             self.steps_in_pain / -500,
+                             self.steps / 1000,
+                             self.happiness_total / 500,
+                             self.times_eaten / 500,
+                             self.times_drank / 500,
+                             -1.0 if self.last_failed else 0.0], dtype=np.float32)
 
 
         # Combine, Normalize, and Return Observation
@@ -252,6 +271,7 @@ class Agent:
                     self.sit_counter = 0
 
                     event = "eat"
+                    print(f"Agent {self.name} ate a Corpse")
                     self.grid.cells[ny][nx] = GRAVE
                     self.tile_under = GRAVE
                     self.times_eaten += 1
@@ -502,6 +522,8 @@ class Agent:
             self.health = self.health_max
         return self.health
 
+    # --- Eat Function ---
+
     # --- Combat Function ---
     def fight(self, target):
         """
@@ -647,5 +669,5 @@ class Agent:
     # --- Get Max Offensive ---
     # *Combat Normalized for convenience
     def get_xOffn(self):
-        offn = get_Offn(self.get_cStats())
+        offn = Agent.get_Offn(self.get_cStats())
         return max(offn)

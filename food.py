@@ -34,24 +34,12 @@ class Food:
         # Otherwise, there is an interaction between the two flavors based on distance
         else:
             # Start by defining two distance vector
-            distance = abs(flavor2 - flavor1)
+            distance = abs(Food.FLAVOR.index[flavor2] - Food.FLAVOR.index[flavor1])
 
-            # Edge Cases (Crunchy, Savory)
-            if distance > 3:
+            if (distance > 3):
                 distance = 7 - distance
 
-            # Similar Flavors
-            if distance == 1:
-                return 0.9
-            # Nearby Flavors
-            elif distance == 2:
-                return 0.5
-            # Distant Flavors
-            elif distance == 3:
-                return 0.1
-            # Error Checker
-            else:
-                return -1.0
+            return {1: 0.9, 2: 0.5, 3: 0.1}.get(distance, -1.0)
 
     def __init__(self, nValue=5, name="Tofu", flavor='Neutral', isSafe=True):
         self.name = name
