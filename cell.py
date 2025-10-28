@@ -37,3 +37,10 @@ class Cell:
         
         self.clarity = clarity
         self.passable = passable
+        
+    def set_conts(self, conents, override=False):
+        if self.contents != None and not override:
+            return False
+        elif self.contents == None or override:
+            self.contents = contents
+            return True
