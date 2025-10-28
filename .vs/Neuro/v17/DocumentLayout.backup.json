@@ -11,8 +11,20 @@
       "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:Neuro.py||{8B382828-6202-11D1-8870-0000F87579D2}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\hazard.py||{8B382828-6202-11D1-8870-0000F87579D2}",
-      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:hazard.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\grid.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:grid.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\training.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:training.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\logger.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:logger.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\SillyNames.txt||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:SillyNames.txt||{8B382828-6202-11D1-8870-0000F87579D2}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\cell.py||{8B382828-6202-11D1-8870-0000F87579D2}",
@@ -23,24 +35,12 @@
       "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:food.py||{8B382828-6202-11D1-8870-0000F87579D2}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\grid.py||{8B382828-6202-11D1-8870-0000F87579D2}",
-      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:grid.py||{8B382828-6202-11D1-8870-0000F87579D2}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\SillyNames.txt||{8B382828-6202-11D1-8870-0000F87579D2}",
-      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:SillyNames.txt||{8B382828-6202-11D1-8870-0000F87579D2}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\training.py||{8B382828-6202-11D1-8870-0000F87579D2}",
-      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:training.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\hazard.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:hazard.py||{8B382828-6202-11D1-8870-0000F87579D2}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\network.py||{8B382828-6202-11D1-8870-0000F87579D2}",
       "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:network.py||{8B382828-6202-11D1-8870-0000F87579D2}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|X:\\Programming Shit\\Neuro\\logger.py||{8B382828-6202-11D1-8870-0000F87579D2}",
-      "RelativeMoniker": "D:0:0:{F77A648D-DB80-45F7-B4BB-A2878E83697A}|Neuro.pyproj|solutionrelative:logger.py||{8B382828-6202-11D1-8870-0000F87579D2}"
     }
   ],
   "DocumentGroupContainers": [
@@ -54,7 +54,20 @@
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 7,
+              "Title": "food.py",
+              "DocumentMoniker": "X:\\Programming Shit\\Neuro\\food.py",
+              "RelativeDocumentMoniker": "food.py",
+              "ToolTip": "X:\\Programming Shit\\Neuro\\food.py",
+              "RelativeToolTip": "food.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-27T23:55:57.406Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
               "Title": "cell.py",
               "DocumentMoniker": "X:\\Programming Shit\\Neuro\\cell.py",
               "RelativeDocumentMoniker": "cell.py",
@@ -67,7 +80,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 8,
               "Title": "hazard.py",
               "DocumentMoniker": "X:\\Programming Shit\\Neuro\\hazard.py",
               "RelativeDocumentMoniker": "hazard.py",
@@ -75,21 +88,7 @@
               "RelativeToolTip": "hazard.py",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
-              "WhenOpened": "2025-10-26T18:06:43.89Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "food.py",
-              "DocumentMoniker": "X:\\Programming Shit\\Neuro\\food.py",
-              "RelativeDocumentMoniker": "food.py",
-              "ToolTip": "X:\\Programming Shit\\Neuro\\food.py",
-              "RelativeToolTip": "food.py",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAC4AAAAcAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
-              "WhenOpened": "2025-10-26T17:19:48.299Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-10-26T18:06:43.89Z"
             },
             {
               "$type": "Document",
@@ -99,14 +98,14 @@
               "RelativeDocumentMoniker": "agent.py",
               "ToolTip": "X:\\Programming Shit\\Neuro\\agent.py",
               "RelativeToolTip": "agent.py",
-              "ViewState": "AgIAAP8BAAAAAAAAAAAvwB8CAAAhAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAEsDAAAiAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
               "WhenOpened": "2025-10-06T22:09:12.599Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 4,
               "Title": "logger.py",
               "DocumentMoniker": "X:\\Programming Shit\\Neuro\\logger.py",
               "RelativeDocumentMoniker": "logger.py",
@@ -119,7 +118,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 2,
               "Title": "grid.py",
               "DocumentMoniker": "X:\\Programming Shit\\Neuro\\grid.py",
               "RelativeDocumentMoniker": "grid.py",
@@ -132,7 +131,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 3,
               "Title": "training.py",
               "DocumentMoniker": "X:\\Programming Shit\\Neuro\\training.py",
               "RelativeDocumentMoniker": "training.py",
@@ -145,7 +144,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 9,
               "Title": "network.py",
               "DocumentMoniker": "X:\\Programming Shit\\Neuro\\network.py",
               "RelativeDocumentMoniker": "network.py",
@@ -153,8 +152,7 @@
               "RelativeToolTip": "network.py",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAAAbAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
-              "WhenOpened": "2025-10-12T19:14:06.275Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-10-12T19:14:06.275Z"
             },
             {
               "$type": "Document",
@@ -164,14 +162,14 @@
               "RelativeDocumentMoniker": "Neuro.py",
               "ToolTip": "X:\\Programming Shit\\Neuro\\Neuro.py",
               "RelativeToolTip": "Neuro.py",
-              "ViewState": "AgIAAFAAAAAAAAAAAAAvwGEAAAAcAAAAAAAAAA==",
+              "ViewState": "AgIAAFkAAAAAAAAAAAAvwGIAAAAeAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
               "WhenOpened": "2025-10-03T23:22:59.547Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 5,
               "Title": "SillyNames.txt",
               "DocumentMoniker": "X:\\Programming Shit\\Neuro\\SillyNames.txt",
               "RelativeDocumentMoniker": "SillyNames.txt",

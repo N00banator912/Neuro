@@ -440,6 +440,7 @@ class Agent:
                     print(f"💀 Agent {self.name} died at age {self.age} position({self.x}, {self.y})")
 
                 return self.compute_reward(event)
+
         finally:
             self.biostasis()
     # --- Act ---
@@ -510,9 +511,13 @@ class Agent:
         if self.cHP < self.MHP * pain_threshold:
             self.happiness *= .6
 
+        # Old Enough to Breed
         if self.age >= 10 and not self.mate_timer > 0:
             self.can_mate = True
             self.clutch_size = int(np.ln(self.get_xStam()))
+        elif self.mate_timer > 0:
+            mate_timer -= 1
+
     # Check if a level has been earned from np
     def level_check(self):
         level_up_count = 0
@@ -832,6 +837,11 @@ class Agent:
 
         for _ in range(clutch_size):
             child = Agent(...)  # ← your spawn code here
+            
+            # Combine flavor prefs
+            for flavor in self.fPrefs:
+                child.fPrefs[flavor] = np.mean([self.fPrefs[flavor], target.fPrefs[flavor]])
+            offspring.append(child)
 
             # Interpolate stats
             for stat in ["ATK", "DEF", "MHP", "MAG", "RES", "MSP", "SPD"]:
@@ -841,10 +851,6 @@ class Agent:
             child.level = 1
             child.age = 0
 
-            # Combine flavor prefs
-            for flavor in self.fPrefs:
-                child.fPrefs[flavor] = np.mean([self.fPrefs[flavor], target.fPrefs[flavor]])
-            offspring.append(child)
 
         self.mate_timer = 50 * clutch_size  # cooldown
         target.mate_timer = 50 * clutch_size
