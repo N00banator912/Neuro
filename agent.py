@@ -5,6 +5,7 @@
 
 # Imports
 from math import floor
+from operator import index
 import os
 from keras import activations
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -17,8 +18,7 @@ import matplotlib.pyplot as plt
 
 # Local Imports
 from grid import GRAVE, WATER, FOOD, DANGER, EMPTY, AGENT, CORPSE
-from food import FLAVOR, compatibility
-
+from food import Food, FLAVOR, compatibility
 matplotlib.use("Agg")  # Non-interactive, no GUI required
 
 class Agent:
@@ -80,9 +80,29 @@ class Agent:
         self.cSP = self.MSP
         self.SPD = 2
 
+        # NP
+        self.npCr = abs(self.fPrefs[index('Crunchy')]) * 100
+        self.npFa = abs(self.fPrefs[index('Fatty')]) * 100
+        self.npSw = abs(self.fPrefs[index('Sweet')]) * 100
+        self.npSo = abs(self.fPrefs[index('Sour')]) * 100
+        self.npBi = abs(self.fPrefs[index('Bitter')]) * 100
+        self.npSp = abs(self.fPrefs[index('Spicy')]) * 100
+        self.npSa = abs(self.fPrefs[index('Savory')]) * 100
+
+        self.lnpCr = self.npCr  #lifetime np
+        self.lnpFa = self.npFa
+        self.lnpSw = self.npSw
+        self.lnpSo = self.npSo
+        self.lnpBi = self.npBi
+        self.lnpSp = self.npSp
+        self.lnpSa = self.npSa
+
+        self.level_check()
+
         # Age
         self.age = 0
         self.level = 1
+        self.can_mate = False
         
         # Achievement Attributes
         self.times_eaten = 0
@@ -143,6 +163,75 @@ class Agent:
 
         for d in range(pCount):
             external[d] = np.zeros(pDepth)
+            
+            # Step outward until you hit something or max sight range
+            hit_object = None
+
+            # Maximum Perception Distance is
+            # interpolation from self.perception.min to self.perception.max
+            # by a factor of:
+            #   DIRECTIONS[d] == self.dir:
+            #       perception.max
+            #   DIRECTIONS[d] == (maximum magnitude from self.dir):
+            #       perception.min
+            #   where "magnitude" = distance in real space:
+            #   N - N = 0; N-NE = N - NW = 1; N-E = N-W = 2, N-SW = N-NW = 3, N-S = 4
+            #   (which is really just an |cos| but that isn't how it's implemented)
+            dir_diff = abs(d - self.dir)
+            if dir_diff > 4:
+                dir_diff = 8 - dir_diff  # wrap around (e.g., N vs NW)
+                # Linear interpolation between min and max
+                perception_factor = np.interp(dir_diff, [0, 4], [self.perception_max, self.perception_min])
+
+                # Determine maximum sight distance for this direction
+                max_distance = int(round(self.sight_range * perception_factor))
+                sight_range = max(1, max_distance)  # ensure at least one tile visible
+
+            for step in range(1, self.sight_range + 1):
+                dx, dy = pDirections[d]
+                tx, ty = self.x + dx * step, self.y + dy * step
+        
+                # Out-of-bounds check
+                if not (0 <= tx < self.grid.width and 0 <= ty < self.grid.height):
+                    break
+        
+                cell = self.grid.cells[ty][tx]
+                if cell != EMPTY:
+                    hit_object = cell
+                    distance = step
+                    break
+
+            # Normalize distance
+            dist_norm = 1.0 - (distance / self.sight_range)
+            external[d, 0] = dist_norm
+
+            # Encode object type numerically
+            obj_type = 0
+            if hit_object == FOOD:
+                obj_type = 1
+            elif hit_object == AGENT:
+                obj_type = 2
+            elif hit_object == DANGER:
+                obj_type = 3
+            external[d, 1] = obj_type
+
+            # --- Food branch ---
+            if hit_object == FOOD:
+                food_obj = self.grid.get_food_at(tx, ty)  # you’ll need this helper
+                if food_obj:
+                    # Encode flavors as one-hot or scaled preference
+                    for i, f in enumerate(FLAVOR):
+                        external[d, 2 + i] = 1.0 if food_obj.flavor == f else 0.0
+
+            # --- Agent branch ---
+            elif hit_object == AGENT:
+                other = self.grid.get_agent_at(tx, ty)
+                if other:
+                    # Agent stats start after flavor indices
+                    base_idx = 2 + len(FLAVOR)
+                    stats = other.get_lStats()
+                    external[d, base_idx:base_idx + 7] = stats
+                    external[d, base_idx + 7] = other.level
 
         internal = np.array([self.cHP / self.MHP, 
                              self.cSP / self.MSP,
@@ -256,35 +345,29 @@ class Agent:
                 # Pick an action based on target
                 # Eat a Food
                 if cell == FOOD:
-                    self.hunger = self.hunger_max
-                    self.happiness *= 1.1
+                    self.eat(self.grid.cells[ny][nx])
                     self.sit_counter = 0
 
-                    event = "eat"
-                    self.grid.cells[ny][nx] = EMPTY
-                    self.times_eaten += 1
-
-                # Eat a Corpse
+                # Corpse Interaction
                 elif cell == CORPSE:
-                    self.hunger = self.hunger_max * .5
-                    self.happiness *= .5
+                    target = self.grid.cells[ny][nx]
                     self.sit_counter = 0
 
-                    event = "eat"
-                    print(f"Agent {self.name} ate a Corpse")
-                    self.grid.cells[ny][nx] = GRAVE
-                    self.tile_under = GRAVE
-                    self.times_eaten += 1
+                    # Corpse Eating
+                    if (self.flavor.compatibility(target.flavor) < 1 and self.flavor.compatibility(target.flavor) > .01):
+                        self.eat(target.as_food())
+
+                    # Bury the Dead
+                    elif (self.flavor.compatibility(target.flavor) == 1):
+                        self.grid.cells[ny][nx] = GRAVE
+                        self.happiness += .01
+                        event = "bury"
 
                 # Drink Water
                 elif cell == WATER:
                     # The Agent enters the water and drinks
                     if self.tile_under != WATER:  # Only trigger when first stepping into water
-                        self.thirst = self.thirst_max
-                        self.happiness *= 1.05
-                        self.sit_counter = 0
-                        event = "drink"
-                        self.times_drank += 1
+                        self.drink(self.grid[nx][ny])
 
                     # The Agent is already in water, stop
                     else:
@@ -307,9 +390,13 @@ class Agent:
 
                     # If the target is valid
                     if target and target.alive:
-                        # Reproduction Logic is going in here shortly
-                        event = "fight"
-                        self.fight(target)
+                        if self.flavor.compatability >= 0.75:
+                            self.mate(target)
+                        
+                        else:
+                            self.fight(target)
+                    
+                    # Error Case
                     else:
                         # If no valid target found (shouldn’t happen)
                         event = "bump"
@@ -368,37 +455,128 @@ class Agent:
         self.hunger -= self.hunger_loss
         self.thirst -= self.thirst_loss
 
-        # secondary health effects
+        # Secondary Health Effects
+        # Hunger Damage
         if self.hunger <= 0:
-            self.hurt(1)
-        elif self.hunger >= self.hunger_max and self.health < self.health_max:
-            self.hurt(-1)
-        
-        if self.thirst <= 0:
-            self.hurt(1)
-        elif self.thirst >= self.thirst_max and self.health < self.health_max:
-            self.hurt(-1)
+            self.hurt(3)
 
+        # Hunger Recovery
+        elif self.hunger >= self.hunger_max and self.cHP < self.MHP:
+            self.hurt(-1)
+            self.hunger -= 1      
+            
+        # Thirst Damage
+        if self.thirst <= 0:
+            self.hurt(3)
+
+        # Thirst Recovery
+        elif self.thirst >= self.thirst_max and self.cSP < self.MSP:
+            self.cSP += 5
+            self.thirst -= 5
+
+        # Exhaustion Damage
         if self.fatigue >= 0.8:
             self.hurt(5)
+
+        # Tiredness Damage
         elif self.fatigue >= 0.5:
             self.hurt(3)
-            
+        
+        # Depression Damage
         if self.happiness <= .6:
             self.hurt(1)
-        if self.happiness >= .9 and self.health < self.health_max:
-            self.hurt(-1)
-            
+        # Happiness Recovery
+        if self.happiness >= .9:
+            if self.cHP < self.MHP:
+                self.hurt(-1)
+            if self.cSP < self.MSP:
+                self.cSP += 1
+
+        # Overfull
         if self.hunger > self.hunger_max:
             self.hunger_max += 5
+            self.MHP += 5
             self.hunger = self.hunger_max
+
+        # Waterlogged
         if self.thirst > self.thirst_max:
             self.thirst_max += 5
+            self.MSP += 5
             self.thirst = self.thirst_max
+            self.SPD -= 1
             
-        if self.health < self.health_max * self.pain_threshold:
-            self.happiness *= .95
-                
+        # Pain Happiness Effect
+        pain_threshold = self.DEF + self.RES / 200
+        if self.cHP < self.MHP * pain_threshold:
+            self.happiness *= .6
+
+        if self.age >= 10 and not self.mate_timer > 0:
+            self.can_mate = True
+            self.clutch_size = int(np.ln(self.get_xStam()))
+    # Check if a level has been earned from np
+    def level_check(self):
+        level_up_count = 0
+
+        # These are loops to account for sudden NP influx eg initial birth
+        # Check Crunchy NP
+        while self.npCr >= 1000:
+            self.npCr -= 1000
+
+            # Defense Level Up
+            self.DEF += 5
+            level_up_count += 1
+
+        # Check Fatty NP
+        while self.npFa >= 1000:
+            self.npFa -= 1000
+
+            # HP Level Up
+            self.MHP += np.ln(self.level)
+            self.MHP = np.clamp(self.MHP, 10, 500)
+            level_up_count += 1
+
+        # Check Sweet NP
+        while self.npSw >= 1000: 
+            self.npSw -= 1000
+
+            # Speed Level Up
+            self.SPD += 1
+            level_up_counter += 1
+
+        # Check Sour NP
+        while self.npSo >= 1000:
+            self.npSo -= 1000
+
+            # Resistance Level Up
+            self.RES += 5
+            level_up_counter += 1
+
+        # Check Bitter NP
+        while self.npBi >= 1000:
+            self.npBi -= 1000
+
+            # SP Level Up
+            self.MSP += int(np.ln(self.level)/ 3.0)
+            self.MSP = np.clamp(self.MSP, 10, 200)
+            level_up_counter += 1
+
+        # Check Spicy NP
+        while self.npSp >= 1000:
+            self.npSp -= 1000
+
+            # Magic Level Up
+            self.MAG += 5
+            level_up_counter += 1
+
+
+
+        # Check Savory NP
+        while self.npSa >= 1000:
+            self.npSa -= 1000
+
+
+
+
     # --- Compute Reward ---
     def compute_reward(self, event=None):
         """
@@ -443,11 +621,11 @@ class Agent:
         reward -= 0.5 * (hunger_penalty + thirst_penalty)
 
         # Small health-based adjustment
-        health_frac = self.health / max(1.0, self.health_max)
+        health_frac = self.cHP / max(1.0, self.MHP)
         reward += (health_frac - 1.0) * 0.2  # small tweak: negative when hurt
 
         # Decrease if in Pain
-        if self.health < self.health_max * self.pain_threshold:
+        if self.cHP < self.MHP * self.pain_threshold:
             reward *= 0.75
               
         # Multiply by happiness factor
@@ -505,24 +683,86 @@ class Agent:
             logger.log_figure("policy_grid", fig, step=step)
         plt.close(fig)
 
-
-        
+    # --- Behavioural Functions ---
+    # --- for things Agents can do during a step ---     
     # --- Hurt Function ---
     def hurt(self, damage):
         # Check if damage is above damage threshold (ignore DT for healing, i.e. -damage)
-        if (damage > 0 and damage > self.damage_threshold) or (damage < 0):
-            self.health -= damage
+        if damage > 0:
+            if damage.is_phys:
+                damage_threshold = self.DEF/500
+            elif damage.is_magi:
+                damage_threshold = self.RES/500
+
+
+            if (damage > self.damage_threshold) or (damage < 0):
+                self.cHP -= damage
 
         # Bounds Checking
         if self.health < 0:
             self.health = 0
             self.is_dead(force=True)
-        elif self.health > self.health_max:
-            self.health_max += 1
+
+        elif self.cHP > self.MHP:
+            self.cHP = self.MHP
             self.health = self.health_max
         return self.health
 
     # --- Eat Function ---
+    def eat (self, target):
+        """
+        Consume a food object and update hunger, happiness, and NP gain.
+        Handles flavor preference and allergic reactions.
+        """
+        # Error Case
+        if not target:
+            return 0.0
+
+        # Get the Target's Flavor
+        flavor = target.flavor
+        preference = self.fPrefs[flavor]
+        np_gain = preference * 100
+
+        # Hunger restoration
+        self.hunger = min(self.hunger_max, self.hunger + 10)
+    
+        # NP assignment
+        if flavor == "Crunchy": self.npCr += np_gain
+        elif flavor == "Fatty": self.npFa += np_gain
+        elif flavor == "Sweet": self.npSw += np_gain
+        elif flavor == "Sour": self.npSo += np_gain
+        elif flavor == "Bitter": self.npBi += np_gain
+        elif flavor == "Spicy": self.npSp += np_gain
+        elif flavor == "Savory": self.npSa += np_gain
+
+        # Neutral Flavor
+        else:
+            gains = np_gain / 10.0
+            self.npCr += gains
+            self.npFa += gains
+            self.npSw += gains
+            self.npSo += gains
+            self.npBi += gains
+            self.npSp += gains
+            self.npSa += gains
+
+
+        # Allergic or disliked food
+        if preference < 0:
+            self.happiness *= 0.75
+            self.hurt(target.nValue * preference)
+        else:
+            self.happiness *= 1.1
+
+        self.times_eaten += 1
+        self.level_check()
+
+        return self.compute_reward("eat")
+    
+    # --- Drink Function ---
+    def drink (self, target):
+        self.happiness *= target.clarity / 5    # ~0.5 - 2.0
+        self.thirst += taget.clarity * 5        # ~5 - 50
 
     # --- Combat Function ---
     def fight(self, target):
@@ -574,6 +814,43 @@ class Agent:
 
     
     
+    # --- Mate Function ---
+    def mate(self, target):
+        """
+        Creates offspring based on this agent and a target agent.
+        Currently a stub with partial inheritance logic.
+        """
+
+        # Check if the target can mate
+        if not target or not getattr(target, "can_mate", False) or target.mate_timer > 0:
+            return 0.0
+
+        # Clutch size is larger between parents
+        clutch_size = max(self.clutch_size, target.clutch_size)
+
+        offspring = []
+
+        for _ in range(clutch_size):
+            child = Agent(...)  # ← your spawn code here
+
+            # Interpolate stats
+            for stat in ["ATK", "DEF", "MHP", "MAG", "RES", "MSP", "SPD"]:
+                setattr(child, stat, np.mean([getattr(self, stat), getattr(target, stat)]))
+
+            # Set level and age
+            child.level = 1
+            child.age = 0
+
+            # Combine flavor prefs
+            for flavor in self.fPrefs:
+                child.fPrefs[flavor] = np.mean([self.fPrefs[flavor], target.fPrefs[flavor]])
+            offspring.append(child)
+
+        self.mate_timer = 50 * clutch_size  # cooldown
+        target.mate_timer = 50 * clutch_size
+
+        return self.compute_reward("mate")
+
     # --- Death Check ---
     def is_dead(self, force=False):
         self.alive = not (force or self.health <= 0)
@@ -586,20 +863,35 @@ class Agent:
         if self.grid.cells[self.y][self.x] == AGENT:
             self.grid.cells[self.y][self.x] = EMPTY
 
-        # Restore stats
+        # Restore Secondary Health
         self.hunger = self.hunger_max
         self.thirst = self.thirst_max
-        self.health = self.health_max
         self.fatigue = 0.0
         self.happiness = 1.0
         self.sit_counter = 0
         self.alive = True
+
+        # Reset Achievement Values
+        self.age = 0
         self.times_eaten = 0
         self.times_drank = 0
         self.steps_in_pain = 0
         self.was_in_pain = False
         self.death_step = None
-        self.age = 0
+
+        # Reset Stats then Level
+        self.ATK = self.ATK/self.level
+        self.DEF = self.DEF/self.level
+        self.MHP = self.MHP/self.level
+        
+        self.MAG = self.MAG/self.level
+        self.RES = self.RES/self.level
+        self.MSP = self.MSP/self.level
+
+        self.SPD = 2
+
+        self.level = 1
+
 
 
         # Reset memory and temporary learning buffers
@@ -671,3 +963,9 @@ class Agent:
     def get_xOffn(self):
         offn = Agent.get_Offn(self.get_cStats())
         return max(offn)
+    
+    # --- Get Max Stamina ---
+    # *Combat Normalized for convenience
+    def get_xStam(self):
+        stam = Agent.get_Stam(self.get_sStats())
+        return max(stam)

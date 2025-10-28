@@ -74,7 +74,7 @@ def main():
     grid = Grid(width, height, init_seed)
     
     # Create the Trainer
-    trainer = Trainer(input_size=init_perception * init_periferal, hidden_size=hidden_size, action_size=action_size, lr=learning_rate)
+    trainer = Trainer(input_size=, hidden_size=hidden_size, action_size=action_size, lr=learning_rate)
 
     # Open Name File
     with open("SillyNames.txt", "r", encoding="utf-8") as f:
@@ -95,7 +95,7 @@ def main():
 
     # Initialize Agents
     for _ in range(init_population):
-        a = Agent(0, 0, grid, init_perception, init_periferal, learning_rate, init_hunger, init_thirst, get_random_name())
+        a = Agent(grid._rand_pos(x,y), grid, init_perception, init_periferal, learning_rate, init_hunger, init_thirst, get_random_name())
         a.set_trainer(trainer)
         agents.append(a)       
 
