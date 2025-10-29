@@ -6,7 +6,10 @@
 from food import FLAVOR
 
 class Skill:
-    SKILL_TYPE = []
+    SKILL_TYPE = [
+        'Physical',
+        'Magical',
+        'Support']
         
         
     def __init__(self, name="Move"):

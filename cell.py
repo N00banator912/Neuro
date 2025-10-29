@@ -26,21 +26,30 @@ class Cell:
         'AGENT',
         'TERRAIN']
         
-    def __init__(self, name="Cell", cType=CELL_TYPE[0], contents=None, clarity = 5, passable=True):
+    def __init__(self, name="Cell", cType=CELL_TYPE[0], contents=None, clarity = 5, elevation=1, passable=True):
         self.name = name
         self.cType = cType
-        self.contents = contents
-        
+        self.contents = contents        
+        self.clarity = clarity
+        self.elevation = elevation
+        self.passable = passable
+
         # If the cell is not empty, do anything else that needs done
         if self.contents != None:
             return -1
         
-        self.clarity = clarity
-        self.passable = passable
         
-    def set_conts(self, conents, override=False):
+    def set_conts(self, contents, override=False):
+        # Can't Place on Occupied Cell without override
         if self.contents != None and not override:
             return False
+
+        # If the Cell is Impassible, it can't have an object
+        elif self.passable == False:
+            return False
+
+        # Actually set the contents of an empty Cell
         elif self.contents == None or override:
             self.contents = contents
             return True
+        

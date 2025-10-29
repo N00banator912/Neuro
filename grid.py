@@ -10,6 +10,10 @@ import random
 import os
 from noise import pnoise2
 
+# Local Imports
+from cell import Cell
+from food import Food
+
 # Symbols
 EMPTY = " "
 AGENT = "O"
@@ -31,7 +35,7 @@ class Grid:
     def __init__(self, width=25, height=25, seed=69420):
         self.width = width
         self.height = height
-        self.cells = [[EMPTY for _ in range(width)] for _ in range(height)]
+        self.cells = [[Cell() for _ in range(width)] for _ in range(height)]
         self.food_pos = []
         self.danger_pos = []
         self.agents = []
@@ -55,23 +59,33 @@ class Grid:
                                     persistence=persistence,
                                     lacunarity=lacunarity,
                                     repeatx=1024, repeaty=1024, base=random.randint(0, 9999))
-                elevation[y][x] = (noise_val + 1) / 2.0  # normalize 0–1
+                self.cells[x][y].elevation = (noise_val + 1) / 2.0  # normalize 0–1
 
         # Optional post-blur to smooth small patches
         elevation = self._smooth_noise(elevation, passes=1)
 
-        # --- Terrain thresholds ---
+        # --- Terrain Thresholds ---
         for y in range(self.height):
             for x in range(self.width):
-                val = elevation[y][x]
-                if val < 0.47:
-                    self.cells[y][x] = WATER
-                elif val < 0.55:
-                    self.cells[y][x] = EMPTY
-                elif val < 0.6:
-                    self.cells[y][x] = TREE
+                local_elevation = self.cells[x][y].elevation
+                # Oceans and Land
+                if local_elevation < 0.4:
+                    self.cells[x][y].type = 'WATER'
+                    self.clarity = 3
                 else:
-                    self.cells[y][x] = MOUNTAIN
+                    self.cells[x][y].type = 'LAND'
+
+                # Terrain Object Placement
+                # Mountains
+                if local_elevation > .75:
+                    self.cells[x][y].cType = 'TERRAIN'  # This should actually be setting it to a Mountain Object
+                
+                # Forests
+                elif 0.65 < local_elevation < .69:
+                    self.cells[x][y].cType = 'TERRAIN'
+
+
+
 
         # --- Place food ---
         food_count = int(self.width * self.height * init_food_density)
@@ -133,13 +147,35 @@ class Grid:
         return None
 
 
-    def spawn_food(self, count=5, position=[0, 0], radius=2):
-        ax, ay = position
-        for _ in range(count):
-            fx = random.randint(max(0, ax - radius), min(self.width - 1, ax + radius))
-            fy = random.randint(max(0, ay - radius), min(self.height - 1, ay + radius))
-            if self.cells[fy][fx] == EMPTY:
-                self.cells[fy][fx] = FOOD
+    def place_food(self, food=None, position=[0,0], count=5, radius=3):
+        """
+        Place one or more Food objects near a given position.
+        If no Food object is provided, a default is created.
+        """
+        x, y = position
+        # Create a default Food object if none given
+        if food is None:
+            food = Food()
+
+        # Find nearby empty cells
+
+        empties = self.find_nearby_empty(x, y, radius=radius, count=count)
+
+        # Place food objects
+        placed = 0
+        for (nx, ny) in empties:
+            cell = self.cells[ny][nx]
+            # --- If using symbol-based grid ---
+            if isinstance(cell, str):
+                self.cells[ny][nx] = FOOD
+            # --- If using Cell objects ---
+            elif hasattr(cell, "set_conts"):
+                cell.set_conts(food)
+            placed += 1
+            if placed >= count:
+                break
+
+        return placed
 
     def mark_corpse(self, x, y):
         if 0 <= x < self.width and 0 <= y < self.height:
@@ -152,3 +188,27 @@ class Grid:
             
     def reseed(self, seed):
         random.seed(seed)
+
+    # Helper Functions
+    def find_nearby_empty(self, x, y, radius=1, count=0):
+        """
+        Returns a list of (x, y) coordinates of empty cells within the given radius.
+        Includes diagonals, does not include the original (x, y).
+        """
+        # Create List of Empty Cells
+        empties = []
+        # Loop Cells in valid area
+        for dy in range(-radius, radius + 1):
+            for dx in range(-radius, radius + 1):
+                # Skip the Origin
+                if (dx == 0 and dy == 0):
+                    continue
+                                
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < self.width and 0 <= ny < self.height:
+                    cell = self.cells[ny][nx]
+                    if cell.cType == 'EMPTY' and cell.contents == None:
+                        empties.append((nx, ny))
+                        if count and len(empties) >= count:
+                            return empties
+        return empties

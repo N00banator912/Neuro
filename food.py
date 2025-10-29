@@ -41,8 +41,9 @@ class Food:
 
             return {1: 0.9, 2: 0.5, 3: 0.1}.get(distance, -1.0)
 
-    def __init__(self, nValue=5, name="Tofu", flavor='Neutral', isSafe=True):
+    def __init__(self, nValue=5, name="Tofu", icon='e', flavor='Neutral', isSafe=True):
         self.name = name
+        self.icon = icon
         self.nValue = nValue
         self.flavor = flavor
         self.isSafe = isSafe

@@ -181,7 +181,7 @@ class Agent:
             if dir_diff > 4:
                 dir_diff = 8 - dir_diff  # wrap around (e.g., N vs NW)
                 # Linear interpolation between min and max
-                perception_factor = np.interp(dir_diff, [0, 4], [self.perception_max, self.perception_min])
+                perception_factor = np.interp(dir_diff, [0, 4], self.perception)
 
                 # Determine maximum sight distance for this direction
                 max_distance = int(round(self.sight_range * perception_factor))
@@ -507,8 +507,8 @@ class Agent:
             self.SPD -= 1
             
         # Pain Happiness Effect
-        pain_threshold = self.DEF + self.RES / 200
-        if self.cHP < self.MHP * pain_threshold:
+        self.pain_threshold = 1 - (self.DEF + self.RES / 200)
+        if self.cHP < self.MHP * self.pain_threshold:
             self.happiness *= .6
 
         # Old Enough to Breed
@@ -704,8 +704,8 @@ class Agent:
                 self.cHP -= damage
 
         # Bounds Checking
-        if self.health < 0:
-            self.health = 0
+        if self.cHP < 0:
+            self.cHP = 0
             self.is_dead(force=True)
 
         elif self.cHP > self.MHP:

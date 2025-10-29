@@ -27,6 +27,7 @@
     <Compile Include="logger.py" />
     <Compile Include="network.py" />
     <Compile Include="Neuro.py" />
+    <Compile Include="skill.py" />
     <Compile Include="stats.py" />
   </ItemGroup>
   <ItemGroup>
