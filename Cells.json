@@ -1,0 +1,48 @@
+{
+	"name" : "Cell",
+	"cType": 0,
+	"clarity": 5,
+	"passable": "True"
+}
+{
+	"name" : "Plains",
+	"cType": 0,
+	"clarity": 5,
+	"passable": "True"
+}
+{
+	"name" : "Tree",
+	"cType": 0,
+	"clarity": 5,
+	"passable": "False"
+}
+{
+	"name" : "Mountain",
+	"cType": 0
+	"clarity": 5,
+	"passable": "False"
+}
+{
+	"name" : "Cave",
+	"cType": 0,
+	"clarity": 2,
+	"passable": "True"
+}
+{
+	"name" : "Lake",
+	"cType": 1,
+	"clarity": 10,
+	"passable": "True"
+}
+{
+	"name" : "River",
+	"cType": 1,
+	"clarity": 8,
+	"passable": "True"
+}
+{
+	"name" : "Sea",
+	"cType": 1,
+	"clarity": 7,
+	"passable": "True"
+}

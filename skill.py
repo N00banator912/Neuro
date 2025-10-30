@@ -12,8 +12,10 @@ class Skill:
         'Support']
         
         
-    def __init__(self, name="Move"):
+    def __init__(self, name="Move", damage=None, effects=None):
         self.name = name
+        self.damage = damage
+        self.effects = effects
         
         
 class Damage:
