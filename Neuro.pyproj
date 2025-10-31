@@ -33,7 +33,10 @@
   <ItemGroup>
     <Content Include="agent.py" />
     <Content Include="cell.py" />
+    <Content Include="Cells.json" />
+    <Content Include="Foods.JSON" />
     <Content Include="SillyNames.txt" />
+    <Content Include="Skills.json" />
     <Content Include="training.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

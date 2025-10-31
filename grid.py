@@ -14,19 +14,6 @@ from noise import pnoise2
 from cell import Cell
 from food import Food
 
-# Symbols
-EMPTY = " "
-AGENT = "O"
-CORPSE = "%"
-FOOD = "."
-WATER = "~"
-DANGER = "X"
-TREE    = "T"
-MOUNTAIN = "^"
-GRAVE = "t"
-HOUSE = "h"
-LUMBER = "="
-
 # Parameters
 DangerCount = 3
 init_food_density = 0.7  # Percentage of grid cells to fill with food at init
@@ -84,11 +71,8 @@ class Grid:
                 elif 0.65 < local_elevation < .69:
                     self.cells[x][y].cType = 'TERRAIN'
 
-
-
-
         # --- Place food ---
-        food_count = int(self.width * self.height * init_food_density)
+        food_count = int(self.width * self.height * pow(init_food_density, 2))
         # print (f"Placing {food_count} food items.")
         self.food_pos = []
         for _ in range(int(food_count/5)):

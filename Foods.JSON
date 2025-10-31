@@ -1,77 +1,81 @@
 {
-	"name" : "Tofu"
-    "icon" : "e"
-    "flavor" : "Neutral"
-    "nValue" : 5
-    "isSafe" : "True"
-}
-{
-	"name" : "Nuts"
-    "icon" : "q"
-    "flavor" : "Crunchy", "Savory", "Bitter"
-    "nValue" : 10, 5, 3
-    "isSafe" : "True"
-}
-{
-	"name" : "Coffee"
-    "icon" : "u"
-    "flavor" : "Bitter"
-    "nValue" : 8
-    "isSafe" : "True"
-}
-{
-	"name" : "Cheese"
-    "icon" : "c"
-    "flavor" : "Savory"
-    "nValue" : 10
-    "isSafe" : "True"
-}
-{
-	"name" : "Candy"
-    "icon" : "x"
-    "flavor" : "Sweet"
-    "nValue" : 10
-    "isSafe" : "True"
-}
-{
-	"name" : "Lemon"
-    "icon" : "o"
-    "flavor" : "Sour"
-    "nValue" : 10
-    "isSafe" : "True"
-}
-{
-	"name" : "Pepper"
-    "icon" : "j"
-    "flavor" : "Spicy", "Crunchy"
-    "nValue" : 10, 5
-    "isSafe" : "True"
-}
-{
-	"name" : "Butter"
-    "icon" : "b"
-    "flavor" : "Fatty", "Savory"
-    "nValue" : 10, 5
-    "isSafe" : "True"
-}
-{
-	"name" : "Apple"
-    "icon" : "a"
-    "flavor" : "Sweet", "Sour", "Crunchy"
-    "nValue" : 5, 2, 10
-    "isSafe" : "True"
-}
-{
-	"name" : "Falafel"
-    "icon" : "g"
-    "flavor" : "Savory"
-    "nValue" : 10
-    "isSafe" : "True"
-}
-{
-	"name" : "Carrot"
-    "icon" : "v"
-    "flavor" : "Crunchy", "Sweet"
-    "nValue" : 10, 2
-    "isSafe" : "True"
+  "Foods": [
+    {
+      "name": "Tofu",
+      "icon": "e",
+      "flavor": [ "Neutral" ],
+      "nValue": [ 5 ],
+      "isSafe": "True"
+    },
+    {
+      "name": "Nuts",
+      "icon": "q",
+      "flavor": [ "Crunchy", "Savory", "Bitter" ],
+      "nValue": [ 10, 5, 3 ],
+      "isSafe": "True"
+    },
+    {
+      "name": "Coffee",
+      "icon": "u",
+      "flavor": [ "Bitter" ],
+      "nValue": [ 8 ],
+      "isSafe": true
+    },
+    {
+      "name": "Cheese",
+      "icon": "c",
+      "flavor": [ "Savory" ],
+      "nValue": [ 10 ],
+      "isSafe": true
+    },
+    {
+      "name": "Candy",
+      "icon": "x",
+      "flavor": [ "Sweet" ],
+      "nValue": [ 10 ],
+      "isSafe": true
+    },
+    {
+      "name": "Lemon",
+      "icon": "o",
+      "flavor": [ "Sour" ],
+      "nValue": [ 10 ],
+      "isSafe": true
+    },
+    {
+      "name": "Pepper",
+      "icon": "j",
+      "flavor": [ "Spicy", "Crunchy" ],
+      "nValue": [ 10, 5 ],
+      "isSafe": true
+    },
+    {
+      "name": "Butter",
+      "icon": "b",
+      "flavor": [ "Fatty", "Savory" ],
+      "nValue": [ 10, 2 ],
+      "isSafe": true
+    },
+    {
+      "name": "Apple",
+      "icon": "a",
+      "flavor": [ "Sweet", "Sour", "Crunchy" ],
+      "nValue": [ 5, 2, 10 ],
+      "isSafe": true
+    },
+    {
+      "name": "Falafel",
+      "icon": "g",
+      "flavor": [ "Savory" ],
+      "nValue": [ 10 ],
+      "isSafe": true
+    },
+    {
+      "name": "Carrot",
+      "icon": "v",
+      "flavor": [ "Crunchy", "Sweet" ],
+      "nValue": [ 10, 2 ],
+      "isSafe": true
+    }
+  ]
 }

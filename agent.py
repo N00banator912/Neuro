@@ -128,6 +128,14 @@ class Agent:
         self.tile_under = EMPTY
         self.times_bored = 0
 
+        # Special Movement Types
+        self.can_walk = False       # If can't walk, 1 block at a time like old movement
+        self.can_float = False      # Unaffected by tile_under being water or ground hazard, slow movement while floating
+        self.can_climb = False      # Unaffected by tile_under being impassible
+        self.can_swim = False       # Unaffected by tile_under being water
+        self.can_fly = False        # Unaffected by tile_under being water or impassible
+        self.can_dig = False        # Can make Cave 
+
         # input_size now guaranteed to match perceive() output
         input_size = self.sight_range * self.cone_width
         hidden_size = 32

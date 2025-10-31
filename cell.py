@@ -26,9 +26,10 @@ class Cell:
         'AGENT',
         'TERRAIN']
         
-    def __init__(self, name="Cell", cType=CELL_TYPE[0], contents=None, clarity = 5, elevation=1, passable=True):
+    def __init__(self, name="Cell", cType=CELL_TYPE[0], icon=' ', contents=None, clarity = 5, elevation=1, passable=True):
         self.name = name
         self.cType = cType
+        self.icon = icon
         self.contents = contents        
         self.clarity = clarity
         self.elevation = elevation
